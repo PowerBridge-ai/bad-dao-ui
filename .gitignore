@@ -1,6 +1,8 @@
 # Ignore AI development templates directory
 AI-DEV-TEMPLATES/
 
+DEV/pwbr-github-pm/
+
 # Node modules
 node_modules/
 

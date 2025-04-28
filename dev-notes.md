@@ -398,7 +398,6 @@ npx hardhat test
 
 # Deploy contracts
 npx hardhat run scripts/deploy.js --network base_goerli
-
 # Verify contracts
 npx hardhat verify --network base_goerli <CONTRACT_ADDRESS> <CONSTRUCTOR_ARGS>
 
@@ -461,3 +460,151 @@ PGPASSWORD=ATI123#4567 psql -h localhost -U postgres -d bad_dao < backup.sql
 - Add transaction history
 - Enhance mobile responsiveness
 - Add proposal execution simulation 
+
+## BAD DAO Governance Framework - Technical Specification
+**Date**: 2023-06-03
+
+### 🏛️ Governance Structure Overview
+
+The BAD DAO governance system implements a multi-tiered role-based structure with delegation capabilities and AI agent integration. This framework establishes clear responsibilities, qualification processes, and token vesting schedules for all participants.
+
+#### Vesting Strategy Specifications
+
+| Role | Initial Token Allocation | Vesting Period | Cliff | Release Schedule |
+|------|--------------------------|----------------|-------|------------------|
+| Core Team | 15% | 36 months | 6 months | Linear monthly |
+| Contributors | 10% | 24 months | 3 months | Linear monthly |
+| Early Adopters | 5% | 12 months | None | Linear monthly |
+| Treasury | 40% | N/A | N/A | Controlled by governance |
+| Community | 30% | None | None | Immediate availability |
+
+```solidity
+// Core vesting contract implementation
+contract BADVesting {
+    mapping(address => VestingSchedule) public vestingSchedules;
+    
+    struct VestingSchedule {
+        uint256 totalAmount;
+        uint256 startTime;
+        uint256 cliffDuration;
+        uint256 duration;
+        uint256 released;
+        bool revocable;
+        bool revoked;
+    }
+    
+    // Key functions (simplified):
+    function createVestingSchedule(address beneficiary, uint256 amount, uint256 cliff, uint256 duration) external;
+    function release() external;
+    function revoke(address beneficiary) external onlyGovernance;
+}
+```
+
+#### Governance Qualification Process
+
+1. **Core Team Qualification**:
+   - Minimum 12 months direct project experience
+   - Holding minimum 100,000 BAD tokens in locked governance contract
+   - Successful completion of governance qualification process
+   - Multi-sig key holder requirements
+
+2. **Contributor Qualification**:
+   - Minimum 5 successful proposals or contributions
+   - Holding minimum 25,000 BAD tokens
+   - Community reputation score ≥ 85%
+   - Technical expertise verification
+
+3. **Delegate Qualification**:
+   - Minimum 50,000 BAD tokens staked in delegation contract
+   - Successful completion of delegation training
+   - Established track record of participation
+
+#### Delegation Mechanics
+
+```mermaid
+graph TD
+    A[Token Holder] -->|Delegates| B[Delegate]
+    B -->|Votes on proposals| C[Governance Contract]
+    B -->|Can undelegate tokens| A
+    D[Delegation Registry] -->|Tracks delegations| B
+    D -->|Records voting power| C
+    E[Incentive System] -->|Rewards| B
+```
+
+Delegation system implements:
+- Time-locked token delegation with minimum 7-day commitment
+- Performance-based delegation incentives (0.5-2% APY)
+- Delegation power caps (max 5% of total supply per delegate)
+- Slashing conditions for delegate misbehavior
+- Reputation system integration
+
+#### Treasury Automation
+
+```solidity
+// Treasury automation contract (simplified)
+contract TreasuryAutomation {
+    struct PaymentSchedule {
+        address recipient;
+        uint256 amount;
+        uint256 frequency; // in seconds
+        uint256 lastPaid;
+    }
+    
+    mapping(uint256 => PaymentSchedule) public paymentSchedules;
+    
+    function createPaymentSchedule(address recipient, uint256 amount, uint256 frequency) external onlyGovernance;
+    function executePayments() external;
+    function pausePayment(uint256 scheduleId) external onlyGovernance;
+}
+```
+
+Key automation features:
+- Recurring payments for contributors and operations
+- Revenue distribution automation
+- Treasury rebalancing (maintaining allocations between stable and volatile assets)
+- Emergency fund management
+- Proposal funding mechanism
+
+#### AI Agent Integration
+
+The governance system integrates AI agents serving specific functions:
+
+1. **Proposal Analyzer**:
+   - Evaluates proposal completeness and feasibility
+   - Identifies conflicts with existing governance
+   - Estimates economic impact
+
+2. **Voting Recommendation Agent**:
+   - Analyzes proposal alignment with DAO objectives
+   - Provides weighted scoring across evaluation criteria
+   - Publishes recommendation reports for delegates
+
+3. **Treasury Oversight Agent**:
+   - Monitors treasury activity for anomalies
+   - Recommends portfolio adjustments
+   - Generates financial health reports
+
+### Technical Implementation Notes
+
+Backend integration requirements:
+- PostgreSQL database for governance metrics and delegation tracking
+- GraphQL API for frontend integration
+- Ethereum node connection for on-chain verification
+- IPFS integration for proposal documentation
+
+Key smart contract dependencies:
+- OpenZeppelin Governor contracts
+- Custom voting power calculation with time-weighted mechanics
+- Tally integration for governance dashboard
+
+Security considerations:
+- Multi-sig requirements for critical functions (minimum 4/7)
+- Time-locks for significant treasury movements (48-hour minimum)
+- Emergency pause capabilities with distributed control
+
+Development milestones:
+1. Deploy core vesting contracts - Due: 2023-06-05
+2. Implement governance qualification system - Due: 2023-06-08
+3. Deploy delegation mechanics - Due: 2023-06-12
+4. Integrate treasury automation - Due: 2023-06-15
+5. Deploy and configure AI governance agents - Due: 2023-06-17

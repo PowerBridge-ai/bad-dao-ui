@@ -126,4 +126,20 @@
 2. Finish delegation UI implementation
 3. Continue work on proposal listing UI
 4. Begin internal security audit preparations
-5. Complete deployment scripts for Base network 
+5. Complete deployment scripts for Base network
+
+## Added Tasks - 2023-06-03
+
+### Task ID: BADGOV-001
+- **Description**: Implement BAD DAO Vesting, Governance & Delegation Framework
+- **Type**: Governance Development
+- **Assignee**: BAD DAO Core Team
+- **Status**: 🟡 In Progress
+- **Due Date**: 2023-06-17
+- **Comments**: Comprehensive governance framework implementation including token vesting strategy, role definitions, delegation mechanisms, and AI integration. Following 14-day implementation timeline per proposal document.
+- **Subtasks**:
+  - BADGOV-001.1: Deploy token vesting contracts - 🔴 Not Started
+  - BADGOV-001.2: Configure qualification system - 🔴 Not Started
+  - BADGOV-001.3: Set up delegation mechanics - 🔴 Not Started
+  - BADGOV-001.4: Implement treasury automation - 🔴 Not Started
+  - BADGOV-001.5: Deploy AI governance agents - 🔴 Not Started 
