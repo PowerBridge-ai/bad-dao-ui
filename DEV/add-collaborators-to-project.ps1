@@ -67,4 +67,4 @@ mutation {
     }
 }
 
-Write-Host "✅ Process completed" -ForegroundColor Green 
+Write-Host "✅ Process completed" -ForegroundColor Green
