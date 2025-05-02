@@ -608,3 +608,284 @@ Development milestones:
 3. Deploy delegation mechanics - Due: 2023-06-12
 4. Integrate treasury automation - Due: 2023-06-15
 5. Deploy and configure AI governance agents - Due: 2023-06-17
+
+# Core Team Evaluation System - Development Notes
+
+## Technical Implementation Details - 3D Game
+
+### System Specifications
+
+#### Frontend Stack
+- **Framework**: React with TypeScript
+- **3D Rendering**: React Three Fiber & Drei
+- **Animation**: Framer Motion
+- **Styling**: TailwindCSS
+- **State Management**: React Context API
+- **Routing**: React Router v6
+
+#### Backend Services (Planned)
+- **Authentication**: Firebase Authentication
+- **Database**: Firebase Firestore
+- **Storage**: Firebase Storage
+- **Functions**: Firebase Cloud Functions
+
+### Implementation Decisions
+
+#### 1. Game State Management
+
+We chose to implement a comprehensive `GameContext` to handle all game-related state:
+
+```typescript
+interface GameState {
+  players: Player[];
+  currentTurn: string;
+  currentDay: number;
+  totalDays: number;
+  currentScenario: Scenario | null;
+  activeMiniGame: MiniGame | null;
+  calendar: Calendar;
+  teamResources: number;
+  difficultyLevel: 'easy' | 'medium' | 'hard' | 'expert';
+  level: number;
+  gameStarted: boolean;
+  gameEnded: boolean;
+}
+```
+
+This approach centralizes all game logic and state updates, making it easier to:
+- Track player progression
+- Manage game resources
+- Handle turn-based mechanics
+- Trigger scenario events
+- Coordinate mini-games
+
+The context provides utility functions like:
+- `nextDay()`: Progress the game timeline
+- `selectTile()`: Handle player movement
+- `selectScenarioOption()`: Process decision outcomes
+- `completeMiniGame()`: Award team resources & values
+
+#### 2. 3D Board Implementation
+
+We implemented the 3D game board using React Three Fiber with a custom path generation system:
+
+```typescript
+// Helper function to generate board paths
+const generatePath = (start, nodes, type) => {
+  return nodes.map((node, index) => ({
+    id: `${type}-${index}`,
+    position: new Vector3(
+      start.x + node[0], 
+      start.y + node[1], 
+      start.z + node[2]
+    ),
+    type: type,
+    connections: index < nodes.length - 1 ? [`${type}-${index + 1}`] : []
+  }));
+};
+```
+
+Benefits of this approach:
+- Modular path creation
+- Easy to adjust node positions
+- Supports connection visualization
+- Enables dynamic path generation
+
+#### 3. Calendar System
+
+The calendar system serves as the main progression mechanic:
+
+```typescript
+// Create project calendar with weekends and special events
+const createProjectCalendar = (startDate: Date, projectDays: number) => {
+  const weekends: number[] = [];
+  const specialEvents = [
+    { day: 5, title: 'Project Kickoff', description: '...' },
+    { day: 10, title: 'First Milestone Review', description: '...' },
+    // ...
+  ];
+  
+  // Calculate weekends based on start date
+  let currentDate = new Date(startDate);
+  for (let i = 1; i <= projectDays; i++) {
+    currentDate.setDate(currentDate.getDate() + 1);
+    if (currentDate.getDay() === 0 || currentDate.getDay() === 6) {
+      weekends.push(i);
+    }
+  }
+  
+  return {
+    startDate,
+    weekends,
+    specialEvents,
+  };
+};
+```
+
+This provides:
+- Structured progression through the game
+- Special events that trigger mini-games
+- Realistic project timeline visualization
+- Context for decision-making scenarios
+
+#### 4. Mini-Game Framework
+
+We created a flexible mini-game system that supports different game types:
+
+```typescript
+// Mini-game types
+type MiniGameType = 
+  | 'value-alignment'
+  | 'resource-allocation'
+  | 'crisis-response'
+  | 'innovation'
+  | 'communication';
+
+// Mini-game interface
+interface MiniGame {
+  id: string;
+  title: string;
+  description: string;
+  type: MiniGameType;
+  status: 'waiting' | 'active' | 'completed';
+  results: {
+    teamResourceGain: number;
+    teamValueGains: Partial<Player['values']>;
+  } | null;
+}
+```
+
+Benefits:
+- Modular mini-game implementation
+- Common interface for all game types
+- Easy to add new mini-games
+- Consistent result processing
+
+### Performance Considerations
+
+#### 3D Rendering
+- Used minimal geometries to reduce polygon count
+- Implemented level-of-detail management for complex objects
+- Optimized lighting with baked shadows where possible
+- Limited particle effects to important interactions
+
+#### State Management
+- Used React's `useCallback` and `useMemo` for expensive calculations
+- Implemented selective re-rendering with memoization
+- Separated UI state from game state to prevent unnecessary rerenders
+- Batch state updates where possible
+
+### Future Enhancements
+
+#### 1. Advanced Analytics
+Implement a comprehensive analytics system to:
+- Track player decisions over time
+- Generate team value alignment charts
+- Compare individual vs. team priorities
+- Provide insights for team development
+
+#### 2. Persistent Storage
+Add backend integration to:
+- Save and resume game sessions
+- Store historical game results
+- Generate team reports
+- Track progress across multiple sessions
+
+#### 3. Multiplayer Support
+Enhance the system to support:
+- Real-time multiplayer interaction
+- Asynchronous team play
+- Facilitator/observer mode
+- Cross-device synchronization
+
+#### 4. Accessibility Improvements
+Add features to support:
+- Screen reader compatibility
+- Keyboard navigation
+- Color contrast options
+- Reduced motion mode
+
+## Technical Challenges
+
+### Challenge: Path Node Interaction
+**Problem**: Implementing clickable 3D path nodes with visual feedback.
+
+**Solution**: Created custom `PathNode` component with hover state and onClick handler:
+```jsx
+<mesh
+  ref={ref}
+  castShadow
+  receiveShadow
+  onClick={onClick}
+  onPointerOver={() => setHovered(true)}
+  onPointerOut={() => setHovered(false)}
+>
+  {getNodeGeometry()}
+  <meshStandardMaterial
+    color={color}
+    emissive={color}
+    emissiveIntensity={hovered ? 0.8 : 0.2}
+    metalness={0.7}
+    roughness={0.2}
+  />
+</mesh>
+```
+
+### Challenge: Calendar Visualization
+**Problem**: Creating an intuitive calendar that shows project progression.
+
+**Solution**: Implemented a visual calendar with date mapping and special event indicators:
+```jsx
+{Array.from({ length: totalWeeks }).map((_, weekIndex) => (
+  <div key={weekIndex} className="space-y-2">
+    <div className="text-sm text-gray-400">Week {weekIndex + 1}</div>
+    <div className="grid grid-cols-7 gap-2">
+      {getDaysInWeek(weekIndex).map((day, dayIndex) => day !== null ? (
+        <div 
+          key={dayIndex}
+          className={`p-3 rounded-lg ${
+            day === currentDay 
+              ? 'bg-blue-600/80 text-white' 
+              : day < currentDay 
+                ? 'bg-gray-700 text-gray-300' 
+                : calendar.weekends.includes(day)
+                  ? 'bg-gray-700/50 text-gray-400'
+                  : 'bg-gray-800/70 text-gray-300'
+          } ${
+            calendar.specialEvents.some(event => event.day === day)
+              ? 'border-2 border-indigo-500'
+              : 'border border-gray-700'
+          }`}
+        >
+          {/* Calendar day content */}
+        </div>
+      ) : null)}
+    </div>
+  </div>
+))}
+```
+
+## Next Development Steps
+
+1. Implement complete value visualization system
+   - Radar charts for team alignment
+   - Historical tracking of value changes
+   - Comparison view for team members
+
+2. Add comprehensive game analytics
+   - Decision pattern analysis
+   - Value priority detection
+   - Team synergy metrics
+   - Individual contribution tracking
+
+3. Create backend integration
+   - User authentication and profiles
+   - Game state persistence
+   - Team formation and management
+   - Results sharing and reporting
+
+4. Enhance visual polish
+   - Add particle effects for achievements
+   - Implement dynamic lighting based on game state
+   - Create animated transitions between game phases
+   - Add sound effects and optional music

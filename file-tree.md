@@ -1,344 +1,189 @@
-# BAD DAO Project File Structure
+# Core Team Evaluation System - Project Structure
 
-## Project Overview
-```
-/
-├── contracts/           # Smart contract source files
-├── scripts/             # Deployment and utility scripts
-├── frontend/            # React-based web application
-├── test/                # Smart contract tests
-├── docs/                # Project documentation
-├── tasks/               # Custom Hardhat tasks
-└── config/              # Configuration files
-```
-
-## Smart Contracts
+## File Organization
 
 ```
-/contracts
-├── token/
-│   ├── BADToken.sol               # Main ERC20 token with voting capabilities
-│   └── interfaces/
-│       └── IBADToken.sol          # Token interface definitions
-├── governance/
-│   ├── BADGovernor.sol            # Main governance contract
-│   ├── BADTimelock.sol            # Timelock controller
-│   └── interfaces/
-│       ├── IBADGovernor.sol       # Governor interface
-│       └── IBADTimelock.sol       # Timelock interface
-├── access/
-│   └── Roles.sol                  # Role-based access control
-└── utils/
-    └── AddressRegistry.sol        # Registry for contract addresses
+core-team-eval/
+├── public/                      # Static assets
+│   ├── index.html               # Main HTML entry point
+│   ├── favicon.ico              # Site favicon
+│   ├── logo.svg                 # Application logo
+│   ├── assets/                  # Media assets
+│   │   ├── textures/            # 3D textures
+│   │   ├── models/              # 3D models
+│   │   └── sounds/              # Game sound effects
+├── src/                         # Source code
+│   ├── components/              # Reusable components
+│   │   ├── common/              # Shared UI components
+│   │   │   ├── Button.tsx       # Custom button component
+│   │   │   ├── Card.tsx         # Card container component
+│   │   │   ├── Input.tsx        # Form input component
+│   │   │   └── ...              
+│   │   ├── layout/              # Layout components
+│   │   │   ├── Header.tsx       # Application header
+│   │   │   ├── Footer.tsx       # Application footer
+│   │   │   └── ...
+│   │   ├── auth/                # Authentication components
+│   │   │   ├── SignInForm.tsx   # Sign-in form
+│   │   │   ├── AuthGuard.tsx    # Route protection component
+│   │   │   └── ...
+│   │   └── game/                # Game-specific components
+│   │       ├── GameBoard.tsx    # 3D game board
+│   │       ├── PlayerHUD.tsx    # Player heads-up display
+│   │       ├── CalendarView.tsx # Calendar display
+│   │       ├── ScenarioCard.tsx # Decision scenario card
+│   │       ├── MiniGameModal.tsx # Mini-game interface
+│   │       ├── PlayerToken.tsx  # 3D player representation
+│   │       ├── PathNode.tsx     # Interactive path node
+│   │       ├── ValueAlignmentMeter.tsx # Value meter component
+│   │       └── ...
+│   ├── context/                 # React Context providers
+│   │   ├── AuthContext.tsx      # Authentication state
+│   │   ├── GameContext.tsx      # Game state management
+│   │   └── ...
+│   ├── hooks/                   # Custom React hooks
+│   │   ├── useAuth.ts           # Authentication hook
+│   │   ├── useGame.ts           # Game utility hooks
+│   │   └── ...
+│   ├── pages/                   # Application pages
+│   │   ├── HomePage.tsx         # Landing page
+│   │   ├── SignInPage.tsx       # Authentication page
+│   │   ├── ProfileSetupPage.tsx # User profile setup
+│   │   ├── GamePage.tsx         # Main game interface
+│   │   ├── ResultsPage.tsx      # Game results and analytics
+│   │   └── admin/               # Admin section pages
+│   │       ├── AdminDashboard.tsx # Admin main page
+│   │       ├── AdminContentPage.tsx # Content management
+│   │       ├── AdminSessionPage.tsx # Session management
+│   │       └── AdminReportingPage.tsx # Reporting tools
+│   ├── services/                # External services
+│   │   ├── api.ts               # API client
+│   │   ├── firebase.ts          # Firebase configuration
+│   │   ├── analytics.ts         # Analytics service
+│   │   └── ...
+│   ├── utils/                   # Utility functions
+│   │   ├── helpers.ts           # General helper functions
+│   │   ├── gameCalculations.ts  # Game-specific calculations
+│   │   ├── formatters.ts        # Data formatting utilities
+│   │   └── ...
+│   ├── types/                   # TypeScript type definitions
+│   │   ├── auth.types.ts        # Authentication types
+│   │   ├── game.types.ts        # Game-related types
+│   │   └── ...
+│   ├── styles/                  # Global styles
+│   │   ├── global.css           # Global CSS
+│   │   ├── tailwind.css         # Tailwind imports
+│   │   └── ...
+│   ├── App.tsx                  # Main application component
+│   ├── index.tsx                # Application entry point
+│   └── router.tsx               # Application routing
+├── _DOCS/                       # Project documentation
+│   ├── CORE-TEAM-EVAL_v1_0_0/   # Version documentation
+│   │   ├── level-one-game-design.md # Game design document
+│   │   ├── technical-specifications.md # Technical specs
+│   │   └── ...
+├── package.json                 # Project dependencies
+├── tsconfig.json                # TypeScript configuration
+├── tailwind.config.js           # Tailwind CSS configuration
+├── README.md                    # Project overview
+├── dev-notes.md                 # Development notes
+├── task-log.md                  # Task tracking log
+└── file-tree.md                 # This file structure document
 ```
 
-### Token Contract Details
-- **BADToken.sol**: 196 lines
-  - ERC20 implementation with governance extensions
-  - Includes snapshot functionality for voting
-  - Delegation mechanics for voting power
-  - Features: minting, burning, delegation
+## Component Dependencies
 
-### Governance Contract Details
-- **BADGovernor.sol**: 248 lines
-  - Proposal creation and management
-  - Voting mechanisms
-  - Execution logic
-  - Extensions for various governance features
-- **BADTimelock.sol**: 112 lines
-  - Delayed execution security mechanism
-  - Role-based access control
-  - Proposal scheduling and cancellation
-
-## Frontend Application
+### Game Components Relationships
 
 ```
-/frontend
-├── public/
-│   ├── index.html
-│   ├── favicon.ico
-│   └── assets/
-│       └── images/
-├── src/
-│   ├── components/
-│   │   ├── common/
-│   │   │   ├── Button.jsx
-│   │   │   ├── Card.jsx
-│   │   │   ├── Modal.jsx
-│   │   │   └── Spinner.jsx
-│   │   ├── layout/
-│   │   │   ├── Header.jsx
-│   │   │   ├── Footer.jsx
-│   │   │   └── Sidebar.jsx
-│   │   ├── token/
-│   │   │   ├── TokenBalance.jsx
-│   │   │   ├── TransferForm.jsx
-│   │   │   └── DelegationForm.jsx
-│   │   ├── governance/
-│   │   │   ├── ProposalList.jsx
-│   │   │   ├── ProposalCard.jsx
-│   │   │   ├── ProposalDetail.jsx
-│   │   │   ├── VotingInterface.jsx
-│   │   │   └── ProposalForm.jsx
-│   │   └── wallet/
-│   │       ├── WalletConnect.jsx
-│   │       └── NetworkSwitch.jsx
-│   ├── hooks/
-│   │   ├── useWeb3.js
-│   │   ├── useToken.js
-│   │   ├── useGovernance.js
-│   │   └── useProposals.js
-│   ├── contexts/
-│   │   ├── Web3Context.js
-│   │   └── AppContext.js
-│   ├── services/
-│   │   ├── web3Service.js
-│   │   ├── tokenService.js
-│   │   ├── governanceService.js
-│   │   └── apiService.js
-│   ├── utils/
-│   │   ├── formatters.js
-│   │   ├── validators.js
-│   │   └── constants.js
-│   ├── pages/
-│   │   ├── Home.jsx
-│   │   ├── TokenPage.jsx
-│   │   ├── GovernancePage.jsx
-│   │   └── ProposalPage.jsx
-│   ├── App.jsx
-│   └── index.js
-├── package.json
-├── .env
-└── config-overrides.js
+GamePage
+├── GameBoard
+│   ├── PathNode
+│   ├── PlayerToken
+│   ├── CalendarSystem (3D)
+│   └── Environment
+├── PlayerHUD
+│   └── ValueAlignmentMeter
+├── ScenarioCard
+├── MiniGameModal
+└── CalendarView
 ```
 
-### Key Frontend Components
-- **WalletConnect.jsx**: 145 lines - Wallet connection interface
-- **ProposalDetail.jsx**: 208 lines - Detailed view of governance proposals
-- **VotingInterface.jsx**: 187 lines - Interface for casting votes
-- **TokenBalance.jsx**: 92 lines - Token balance display and management
-
-## Test Files
+### Context Consumption
 
 ```
-/test
-├── token/
-│   ├── BADToken.test.js            # Token functionality tests
-│   └── TokenVoting.test.js         # Token voting capability tests
-├── governance/
-│   ├── Governor.test.js            # Governance functionality tests
-│   ├── Proposals.test.js           # Proposal creation and execution tests
-│   └── Timelock.test.js            # Timelock functionality tests
-├── integration/
-│   ├── GovernanceFlow.test.js      # End-to-end governance flow tests
-│   └── TokenGovernance.test.js     # Token and governance integration tests
-└── utils/
-    ├── fixtures.js                 # Test fixtures and setup
-    └── helpers.js                  # Test helper functions
+GameContext
+├── GamePage
+├── GameBoard
+├── PlayerHUD
+├── ScenarioCard
+├── MiniGameModal
+└── CalendarView
+
+AuthContext
+├── App
+├── SignInPage
+├── ProfileSetupPage
+├── ProtectedRoute
+└── AdminPages
 ```
 
-## Deployment Scripts
+## File Sizes and Metrics
 
-```
-/scripts
-├── deploy/
-│   ├── 01_deploy_token.js            # Token deployment script
-│   ├── 02_deploy_timelock.js         # Timelock deployment script
-│   ├── 03_deploy_governor.js         # Governor deployment script
-│   └── 04_setup_roles.js             # Role configuration script
-├── verify/
-│   ├── verify_token.js               # Token verification script
-│   ├── verify_timelock.js            # Timelock verification script
-│   └── verify_governor.js            # Governor verification script
-└── utils/
-    ├── network.js                    # Network utilities
-    └── addresses.js                  # Contract address management
-```
+### Key Component Sizes
 
-## Documentation
+| Component | Lines of Code | Dependencies | Description |
+|-----------|--------------|--------------|-------------|
+| GameContext.tsx | 450+ | React | Central game state management |
+| GameBoard.tsx | 350+ | React, Three.js | 3D game board renderer |
+| PlayerHUD.tsx | 200+ | React, Framer | Player interface |
+| MiniGameModal.tsx | 600+ | React, Framer | Mini-game framework |
+| CalendarView.tsx | 250+ | React | Calendar visualization |
+| PathNode.tsx | 100+ | React, Three.js | Interactive 3D path node |
 
-```
-/docs
-├── contracts/
-│   ├── BADToken.md                 # Token documentation
-│   ├── BADGovernor.md              # Governor documentation
-│   └── BADTimelock.md              # Timelock documentation
-├── architecture/
-│   ├── overview.md                 # System architecture overview
-│   └── security.md                 # Security considerations
-├── guides/
-│   ├── deployment.md               # Deployment guide
-│   ├── governance.md               # Governance guide
-│   └── token.md                    # Token management guide
-└── api/
-    └── endpoints.md                # API documentation
-```
+### Component Structure Overview
 
-## Configuration Files
+The project follows a modular structure with clear separation of concerns:
 
-```
-/config
-├── networks.js                    # Network configurations
-├── contracts.js                   # Contract configurations
-└── deployment.js                  # Deployment configurations
-```
+1. **Pages**: Container components that compose multiple components
+2. **Components**: Reusable UI elements grouped by functionality
+3. **Context**: State management for application-wide concerns
+4. **Hooks**: Encapsulated logic for component behavior
+5. **Services**: External API integrations
+6. **Utils**: Pure utility functions
 
-## Database Scripts
-
-```
-/db
-├── schema/
-│   ├── schema.sql                  # Database schema
-│   └── migrations/                 # Schema migrations
-├── queries/
-│   ├── proposals.sql               # Proposal-related queries
-│   ├── votes.sql                   # Vote-related queries
-│   └── tokens.sql                  # Token-related queries
-└── scripts/
-    ├── init.sql                    # Database initialization
-    ├── backup.sh                   # Backup script
-    └── restore.sh                  # Restore script
-```
-
-## Dependency Map
-
-```mermaid
-graph TD
-    BADToken --> OpenZeppelin[OpenZeppelin ERC20Votes]
-    BADGovernor --> OpenZeppelin
-    BADGovernor --> BADToken
-    BADGovernor --> BADTimelock
-    BADTimelock --> OpenZeppelin
-    Frontend --> Web3Modal
-    Frontend --> Ethers.js
-    Frontend --> React
-    Frontend --> Redux
-    Frontend --> BADToken
-    Frontend --> BADGovernor
-```
-
-## Key Size Metrics
-
-| Component | Files | Lines of Code | Size (KB) |
-|-----------|-------|---------------|-----------|
-| Contracts | 8     | 820           | 32        |
-| Frontend  | 32    | 3,500         | 120       |
-| Tests     | 10    | 1,200         | 45        |
-| Scripts   | 12    | 650           | 26        |
-| Docs      | 15    | 900           | 35        |
-| **Total** | **77**| **7,070**     | **258**   |
-
-## Component Relationships
-
-### Smart Contract Inheritance
-
-```
-ERC20 ← ERC20Permit ← ERC20Votes ← BADToken
-Governor ← GovernorSettings ← GovernorVotes ← GovernorTimelockControl ← BADGovernor
-TimelockController ← BADTimelock
-```
-
-### Frontend Component Dependencies
-
-```
-App
-├── Web3Context
-│   └── WalletConnect
-├── Home
-├── TokenPage
-│   ├── TokenBalance
-│   ├── TransferForm
-│   └── DelegationForm
-├── GovernancePage
-│   └── ProposalList
-│       └── ProposalCard
-└── ProposalPage
-    ├── ProposalDetail
-    └── VotingInterface
-```
+This structure enables:
+- Clear dependency paths
+- Modular testing
+- Feature encapsulation
+- Component reusability
 
 ## Feature Mapping
 
-| Feature               | Primary Files                                       | Status    |
-|-----------------------|----------------------------------------------------|-----------|
-| Token Creation        | BADToken.sol, deploy_token.js                      | ✅ Complete |
-| Token Transfer        | BADToken.sol, TransferForm.jsx                     | ✅ Complete |
-| Vote Delegation       | BADToken.sol, DelegationForm.jsx                   | 🟡 In Progress |
-| Proposal Creation     | BADGovernor.sol, ProposalForm.jsx                  | 🟡 In Progress |
-| Voting                | BADGovernor.sol, VotingInterface.jsx               | 🟡 In Progress |
-| Proposal Execution    | BADGovernor.sol, BADTimelock.sol                   | 🔴 Not Started |
-| Frontend Deployment   | config-overrides.js, netlify.toml                  | 🔴 Not Started |
-| Contract Verification | verify_*.js                                        | 🔴 Not Started |
+### Game Mechanics to Components
 
-## Database Schema Diagram
+| Feature | Primary Component | Supporting Components |
+|---------|------------------|----------------------|
+| Calendar Progression | GameContext | CalendarView, PlayerHUD |
+| Path Selection | GameBoard | PathNode, PlayerToken |
+| Decision Making | ScenarioCard | GameContext |
+| Mini-Games | MiniGameModal | GameContext |
+| Value Tracking | PlayerHUD | ValueAlignmentMeter |
+| Resource Management | GameContext | PlayerHUD |
 
-```
-proposals
-+----------------+     +----------------+     +----------------+
-| proposal_id PK |---->| id PK          |     | id PK          |
-| title          |     | proposal_id FK |     | proposal_id FK |
-| description    |     | target_address |     | voter          |
-| proposer       |     | value          |     | support        |
-| start_block    |     | signature      |     | weight         |
-| end_block      |     | calldata       |     | reason         |
-| status         |     | execution_order|     | voted_at       |
-| created_at     |     +----------------+     +----------------+
-+----------------+           |                       |
-     proposal_actions        |                       |
-                             +-------+-------+
-                                     |
-                                    votes
-```
+### Authentication Flow
 
-## Environment Setup
+| Step | Component | Context/Services |
+|------|-----------|------------------|
+| Sign In | SignInPage | AuthContext, firebase.ts |
+| Profile Setup | ProfileSetupPage | AuthContext, api.ts |
+| Route Protection | ProtectedRoute | AuthContext |
+| Admin Access | AdminPages | AuthContext, firebase.ts |
 
-### Development Environment
-```bash
-# Install dependencies
-npm install
+## Development Guidelines
 
-# Start local development
-npm run dev
-
-# Run tests
-npm test
-
-# Deploy contracts (testnet)
-npm run deploy:testnet
-
-# Verify contracts (testnet)
-npm run verify:testnet
-```
-
-### Production Environment
-```bash
-# Build frontend
-npm run build
-
-# Deploy contracts (mainnet)
-npm run deploy:mainnet
-
-# Verify contracts (mainnet)
-npm run verify:mainnet
-
-# Deploy frontend
-npm run deploy:frontend
-```
-
-## Build and Deployment Flow
-
-1. **Local Development**
-   - Contract development and testing in local Hardhat network
-   - Frontend development with local contract instances
-
-2. **Testnet Deployment**
-   - Deploy contracts to Base Goerli
-   - Verify contracts on Basescan
-   - Deploy frontend to staging environment
-   - Test complete flow on testnet
-
-3. **Mainnet Deployment**
-   - Deploy contracts to Base
-   - Verify contracts on Basescan
-   - Deploy frontend to production
-   - Monitor initial transactions and governance 
+- Create new components in the appropriate directory based on functionality
+- Maintain clear separation between game logic (Context) and presentation (Components)
+- Use TypeScript interfaces for all props and state
+- Follow the established naming conventions
+- Update this file when adding new significant components or features 
