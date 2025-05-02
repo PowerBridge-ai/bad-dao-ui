@@ -1,0 +1,262 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+
+# 🔄 GitHub Project Management Workflow - Cursor AI Rules
+
+## 📋 Overview
+
+This document defines the automated workflow for managing GitHub project tasks using MCP tools and GitHub CLI. The workflow is designed to be resilient to interruptions, handle task additions/modifications, and maintain synchronization between GitHub issues, project boards, and documentation.
+
+```mermaid
+graph TD
+    A[Initialize Task Loop] --> B[Load Current Tasks]
+    B --> C[Check for Updates]
+    C --> D{New Tasks?}
+    D -- Yes --> E[Create New Tasks]
+    D -- No --> F{Task Changes?}
+    F -- Yes --> G[Update Existing Tasks]
+    F -- No --> H{Task Status Changes?}
+    H -- Yes --> I[Update Task Status]
+    H -- No --> J[Continue Loop]
+    E --> J
+    G --> J
+    I --> J
+    J --> K{User Interrupt?}
+    K -- Yes --> L[Process Interrupt]
+    K -- No --> B
+    L --> M[Document Changes]
+    M --> B
+```
+
+## 🔄 Workflow Loop Definition
+
+```typescript
+type TaskState = {
+  id: string;
+  title: string;
+  body: string;
+  status: 'not_started' | 'in_progress' | 'completed' | 'blocked' | 'testing' | 'verified';
+  labels: string[];
+  assignees: string[];
+  lastUpdated: Date;
+  subtasks: TaskState[];
+};
+
+type ProjectState = {
+  owner: string;
+  repo: string;
+  projectNumber: number;
+  tasks: TaskState[];
+  lastSync: Date;
+};
+```
+
+## 🛠️ Task Management Commands
+
+### 1. Task State Initialization
+
+```bash
+# Initialize project state tracking
+function initialize_project_state() {
+  # Get all current issues
+  gh issue list --repo $REPO --json number,title,body,state,labels,assignees > project_state.json
+  
+  # Get project board state
+  gh project item-list $PROJECT_NUMBER --owner $OWNER --format json > project_board.json
+  
+  # Create task log entry
+  echo "## Project State Initialized - $(date)" >> task-log.md
+}
+```
+
+### 2. Task Creation and Updates
+
+```bash
+# Create new task with proper formatting
+function create_task() {
+  local title="[BAD-$(printf "%03d" $number)] $emoji $task_title"
+  local issueUrl=$(gh issue create --title "$title" --body "$body" --label "$labels" --repo $REPO)
+  gh project item-add $PROJECT_NUMBER --owner $OWNER --url $issueUrl
+  
+  # Update task log
+  echo "- 🆕 Task created: $title" >> task-log.md
+}
+
+# Update existing task
+function update_task() {
+  gh issue edit $issue_number --title "$title" --body "$body" --repo $REPO
+  
+  # Update task log
+  echo "- 🔄 Task updated: $title" >> task-log.md
+}
+```
+
+### 3. Status and Progress Updates
+
+```bash
+# Update task status
+function update_task_status() {
+  gh issue edit $issue_number --repo $REPO
+  
+  # Set status in project
+  gh project item-edit $PROJECT_NUMBER --owner $OWNER --id $item_id --field-id $status_field --text "$new_status"
+  
+  # Update task log
+  echo "- 🔄 Task status changed: $title - $new_status" >> task-log.md
+}
+```
+
+## 🔍 Interrupt Handling
+
+```bash
+# Handle user interrupt during workflow
+function handle_interrupt() {
+  # Save current state
+  echo "## Workflow Interrupted - $(date)" >> task-log.md
+  
+  # Process user request
+  process_user_request()
+  
+  # Document changes
+  echo "- 🚧 Workflow change: $change_description" >> task-log.md
+  
+  # Resume workflow
+  resume_workflow()
+}
+```
+
+## 🔄 Task Synchronization
+
+```bash
+# Synchronize GitHub state with local documentation
+function sync_tasks_with_documentation() {
+  # Update task log
+  update_task_log()
+  
+  # Update dev notes if needed
+  update_dev_notes()
+  
+  # Update file tree if needed
+  update_file_tree()
+  
+  # Log sync
+  echo "## Tasks Synchronized with Documentation - $(date)" >> task-log.md
+}
+```
+
+## 📊 Status Tracking
+
+```bash
+# Track workflow progress
+function track_progress() {
+  local total=$(gh issue list --repo $REPO --json number | jq length)
+  local completed=$(gh issue list --repo $REPO --json number,state | jq '[.[] | select(.state == "closed")] | length')
+  local in_progress=$(gh issue list --repo $REPO --json number,labels | jq '[.[] | select(.labels[].name == "in-progress")] | length')
+  
+  # Calculate percentage
+  local percentage=$((completed * 100 / total))
+  
+  # Update progress
+  echo "## Project Progress: $percentage% - $(date)" >> task-log.md
+  echo "- Total: $total tasks" >> task-log.md
+  echo "- Completed: $completed tasks" >> task-log.md
+  echo "- In Progress: $in_progress tasks" >> task-log.md
+}
+```
+
+## 📝 Implementation Rules
+
+1. **Task Creation Flow**:
+   - Generate proper task ID (BAD-XXX)
+   - Include appropriate emoji
+   - Format content using template
+   - Add to project board
+   - Update task log
+
+2. **Task Update Flow**:
+   - Check for existing task
+   - Update content preserving format
+   - Update labels and assignees
+   - Update project board status
+   - Document changes in task log
+
+3. **Subtask Handling**:
+   - Create checklist items in parent task
+   - Update parent task status based on subtasks
+   - Reflect subtask progress in documentation
+
+4. **Interruption Protocol**:
+   - Save current state
+   - Document interruption point
+   - Process user request
+   - Return to saved state
+   - Continue workflow
+
+5. **Documentation Sync**:
+   - Update task-log.md with all changes
+   - Update dev-notes.md with technical details
+   - Maintain consistent status indicators
+   - Use standard templates and formatting
+
+## 🔍 State Persistence
+
+```bash
+# Save current workflow state
+function save_state() {
+  # Export current tasks, status, and position
+  gh issue list --repo $REPO --json number,title,body,state,labels,assignees > current_state.json
+  
+  # Save current position in workflow
+  echo $current_task > workflow_position.txt
+  
+  # Log state save
+  echo "## Workflow State Saved - $(date)" >> task-log.md
+}
+
+# Restore workflow state
+function restore_state() {
+  # Load saved state
+  cat current_state.json > /tmp/state.json
+  
+  # Get last position
+  current_task=$(cat workflow_position.txt)
+  
+  # Log state restoration
+  echo "## Workflow State Restored - $(date)" >> task-log.md
+}
+```
+
+## 📈 Continuous Improvement Loop
+
+```bash
+# Main workflow loop
+function task_management_loop() {
+  while true; do
+    # Check for changes
+    check_for_task_changes()
+    
+    # Process any pending tasks
+    process_pending_tasks()
+    
+    # Update documentation
+    sync_tasks_with_documentation()
+    
+    # Track progress
+    track_progress()
+    
+    # Check for user interrupt
+    if [[ $user_interrupt == true ]]; then
+      handle_interrupt()
+    fi
+    
+    # Pause before next iteration
+    sleep 5
+  done
+}
+```
+
+By following this workflow, I will automatically manage GitHub tasks using MCP and GitHub CLI, handle interruptions gracefully, and maintain synchronized documentation across all platforms.
+
