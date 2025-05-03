@@ -1,0 +1,59 @@
+{
+  "common": {
+    "loading": "Cargando...",
+    "error": "Error",
+    "success": "Éxito",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "back": "Volver",
+    "next": "Siguiente",
+    "submit": "Enviar",
+    "confirm": "Confirmar",
+    "connect": "Conectar",
+    "disconnect": "Desconectar",
+    "view": "Ver",
+    "edit": "Editar",
+    "delete": "Eliminar"
+  },
+  "auth": {
+    "connect_wallet": "Conectar Wallet",
+    "connect_with_metamask": "Conectar con MetaMask",
+    "connect_with_walletconnect": "Conectar con WalletConnect",
+    "connect_with_coinbase": "Conectar con Coinbase Wallet",
+    "continue_with": "o continuar con",
+    "sign_in_with_google": "Iniciar sesión con Google",
+    "sign_in_with_email": "Iniciar sesión con Email",
+    "email": "Correo electrónico",
+    "password": "Contraseña",
+    "signing_in": "Iniciando sesión...",
+    "terms_agree": "Al conectarte, aceptas los Términos de Servicio y la Política de Privacidad"
+  },
+  "dashboard": {
+    "title": "Panel de Control",
+    "summary_metrics": "Métricas Resumidas",
+    "active_proposals": "Propuestas Activas",
+    "treasury_overview": "Resumen del Tesoro",
+    "voting_history": "Historial de Votación",
+    "recent_transactions": "Transacciones Recientes",
+    "view_all": "Ver Todo",
+    "view_details": "Ver Detalles",
+    "dao_members": "Miembros del DAO",
+    "treasury_balance": "Balance del Tesoro",
+    "voting_power": "Poder de Voto"
+  },
+  "proposals": {
+    "title": "Propuestas de Gobernanza",
+    "subtitle": "Ver, votar y crear propuestas de gobernanza para la DAO",
+    "create_proposal": "Crear Propuesta",
+    "search_proposals": "Buscar propuestas...",
+    "filter": "Filtrar",
+    "all_statuses": "Todos los Estados",
+    "active": "Activa",
+    "pending": "Pendiente",
+    "passed": "Aprobada",
+    "rejected": "Rechazada",
+    "no_proposals_found": "No se encontraron propuestas",
+    "try_adjusting": "Intenta ajustar tu búsqueda o filtros",
+    "be_first": "Sé el primero en crear una propuesta para la comunidad"
+  }
+}

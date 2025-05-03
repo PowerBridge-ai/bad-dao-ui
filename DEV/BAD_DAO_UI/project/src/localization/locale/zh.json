@@ -1,0 +1,44 @@
+{
+  "common": {
+    "loading": "加载中...",
+    "error": "错误",
+    "success": "成功",
+    "save": "保存",
+    "cancel": "取消",
+    "back": "返回",
+    "next": "下一步",
+    "submit": "提交",
+    "confirm": "确认",
+    "connect": "连接",
+    "disconnect": "断开连接",
+    "view": "查看",
+    "edit": "编辑",
+    "delete": "删除"
+  },
+  "auth": {
+    "connect_wallet": "连接钱包",
+    "connect_with_metamask": "使用MetaMask连接",
+    "connect_with_walletconnect": "使用WalletConnect连接",
+    "connect_with_coinbase": "使用Coinbase钱包连接",
+    "continue_with": "或继续使用",
+    "sign_in_with_google": "使用Google登录",
+    "sign_in_with_email": "使用邮箱登录",
+    "email": "邮箱",
+    "password": "密码",
+    "signing_in": "登录中...",
+    "terms_agree": "连接即表示您同意服务条款和隐私政策"
+  },
+  "dashboard": {
+    "title": "仪表板",
+    "summary_metrics": "概要指标",
+    "active_proposals": "活跃提案",
+    "treasury_overview": "资金库概览",
+    "voting_history": "投票历史",
+    "recent_transactions": "最近交易",
+    "view_all": "查看全部",
+    "view_details": "查看详情",
+    "dao_members": "DAO成员",
+    "treasury_balance": "资金库余额",
+    "voting_power": "投票权"
+  }
+}

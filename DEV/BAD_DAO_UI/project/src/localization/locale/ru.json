@@ -1,0 +1,44 @@
+{
+  "common": {
+    "loading": "Загрузка...",
+    "error": "Ошибка",
+    "success": "Успех",
+    "save": "Сохранить",
+    "cancel": "Отмена",
+    "back": "Назад",
+    "next": "Далее",
+    "submit": "Отправить",
+    "confirm": "Подтвердить",
+    "connect": "Подключить",
+    "disconnect": "Отключить",
+    "view": "Просмотр",
+    "edit": "Редактировать",
+    "delete": "Удалить"
+  },
+  "auth": {
+    "connect_wallet": "Подключить кошелек",
+    "connect_with_metamask": "Подключиться через MetaMask",
+    "connect_with_walletconnect": "Подключиться через WalletConnect",
+    "connect_with_coinbase": "Подключиться через Coinbase Wallet",
+    "continue_with": "или продолжить с",
+    "sign_in_with_google": "Войти через Google",
+    "sign_in_with_email": "Войти через Email",
+    "email": "Email",
+    "password": "Пароль",
+    "signing_in": "Вход...",
+    "terms_agree": "Подключаясь, вы соглашаетесь с Условиями использования и Политикой конфиденциальности"
+  },
+  "dashboard": {
+    "title": "Панель управления",
+    "summary_metrics": "Сводная метрика",
+    "active_proposals": "Активные предложения",
+    "treasury_overview": "Обзор казны",
+    "voting_history": "История голосования",
+    "recent_transactions": "Недавние транзакции",
+    "view_all": "Просмотреть все",
+    "view_details": "Подробнее",
+    "dao_members": "Участники DAO",
+    "treasury_balance": "Баланс казны",
+    "voting_power": "Право голоса"
+  }
+}

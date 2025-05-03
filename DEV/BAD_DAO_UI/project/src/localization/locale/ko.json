@@ -1,0 +1,44 @@
+{
+  "common": {
+    "loading": "로딩 중...",
+    "error": "오류",
+    "success": "성공",
+    "save": "저장",
+    "cancel": "취소",
+    "back": "뒤로",
+    "next": "다음",
+    "submit": "제출",
+    "confirm": "확인",
+    "connect": "연결",
+    "disconnect": "연결 해제",
+    "view": "보기",
+    "edit": "편집",
+    "delete": "삭제"
+  },
+  "auth": {
+    "connect_wallet": "지갑 연결",
+    "connect_with_metamask": "MetaMask로 연결",
+    "connect_with_walletconnect": "WalletConnect로 연결",
+    "connect_with_coinbase": "Coinbase 지갑으로 연결",
+    "continue_with": "또는 계속하기",
+    "sign_in_with_google": "Google로 로그인",
+    "sign_in_with_email": "이메일로 로그인",
+    "email": "이메일",
+    "password": "비밀번호",
+    "signing_in": "로그인 중...",
+    "terms_agree": "연결함으로써 서비스 약관 및 개인정보 보호정책에 동의합니다"
+  },
+  "dashboard": {
+    "title": "대시보드",
+    "summary_metrics": "요약 지표",
+    "active_proposals": "활성 제안",
+    "treasury_overview": "자금 개요",
+    "voting_history": "투표 기록",
+    "recent_transactions": "최근 거래",
+    "view_all": "모두 보기",
+    "view_details": "세부정보 보기",
+    "dao_members": "DAO 회원",
+    "treasury_balance": "자금 잔액",
+    "voting_power": "투표력"
+  }
+}
