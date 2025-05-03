@@ -187,3 +187,117 @@ This structure enables:
 - Use TypeScript interfaces for all props and state
 - Follow the established naming conventions
 - Update this file when adding new significant components or features 
+
+## BAD DAO UI Project Structure - Updated
+
+```
+BAD_DAO_UI/
+├── project/
+│   ├── public/
+│   │   ├── index.html
+│   │   ├── favicon.ico
+│   │   ├── fonts/
+│   │   │   └── Inter_Bold.json      # 3D font for Text3D component
+│   │   └── mock/                    # Mock images for testing
+│   └── src/
+│       ├── components/
+│       │   ├── auth/
+│       │   │   ├── AuthGuard.tsx          # Authentication wrapper
+│       │   │   └── WalletConnect.tsx      # Wallet connection component
+│       │   ├── common/
+│       │   │   ├── Button.tsx             # Reusable button component
+│       │   │   ├── Card.tsx               # Card component
+│       │   │   ├── Input.tsx              # Form input component
+│       │   │   ├── Logo.tsx               # App logo component
+│       │   │   └── ... 
+│       │   ├── dashboard/
+│       │   │   ├── ActivityFeed.tsx       # Recent activity component
+│       │   │   ├── BalanceCard.tsx        # Token balance display
+│       │   │   ├── StatsCard.tsx          # Statistics component
+│       │   │   └── ... 
+│       │   ├── layout/
+│       │   │   ├── Footer.tsx             # App footer
+│       │   │   ├── Header.tsx             # App header
+│       │   │   ├── Layout.tsx             # Main layout wrapper
+│       │   │   ├── MobileNav.tsx          # Mobile navigation
+│       │   │   ├── PublicHeader.tsx       # Header for non-auth pages
+│       │   │   └── Sidebar.tsx            # Main navigation sidebar
+│       │   ├── proposals/
+│       │   │   ├── ProposalCard.tsx       # Proposal summary card
+│       │   │   ├── ProposalForm.tsx       # Create proposal form
+│       │   │   ├── VoteButton.tsx         # Voting component
+│       │   │   └── ... 
+│       │   └── treasury/
+│       │       ├── AssetTable.tsx         # Treasury assets table
+│       │       ├── ExpenseCard.tsx        # Expense tracking
+│       │       └── ... 
+│       ├── context/
+│       │   ├── AuthContext.tsx            # Authentication context
+│       │   ├── ThemeContext.tsx           # Theme management
+│       │   └── ... 
+│       ├── hooks/
+│       │   ├── useAuth.ts                 # Authentication hook
+│       │   ├── useContract.ts             # Smart contract interaction
+│       │   ├── useMediaQuery.ts           # Responsive design hook
+│       │   └── ... 
+│       ├── pages/
+│       │   ├── Admin.tsx                  # Admin settings page
+│       │   ├── ConnectWallet.tsx          # Wallet connection page
+│       │   ├── CreateSpace.tsx            # 3D space creation experience
+│       │   ├── Dashboard.tsx              # Main dashboard
+│       │   ├── NotFound.tsx               # 404 page
+│       │   ├── Profile.tsx                # User profile
+│       │   ├── ProposalDetail.tsx         # Single proposal view
+│       │   ├── Proposals.tsx              # Proposals listing
+│       │   ├── SmartContractAI.tsx        # AI contract interaction
+│       │   ├── Spaces.tsx                 # Community spaces explorer
+│       │   └── Treasury.tsx               # Treasury management
+│       └── ...
+```
+
+### Component Details
+
+#### Pages
+
+| Component | Description | Features |
+|-----------|-------------|----------|
+| Dashboard.tsx | Main user dashboard | Activity feed, balance overview, stats |
+| Proposals.tsx | Proposal listing page | Filtering, sorting, pagination |
+| ProposalDetail.tsx | Single proposal view | Voting, comments, execution details |
+| Treasury.tsx | Treasury management | Asset overview, expenses, analytics |
+| SmartContractAI.tsx | AI contract interaction | Contract generation, analysis |
+| Profile.tsx | User profile page | Settings, activity, voting history |
+| Spaces.tsx | Community spaces explorer | Search, filtering, space cards, follow functionality |
+| CreateSpace.tsx | Immersive onboarding | 3D animations, AI assistant guide, step-by-step wizard |
+| Admin.tsx | Admin settings | User management, app settings |
+| NotFound.tsx | 404 error page | Error message, navigation links |
+
+#### Core Components
+
+| Component | Purpose | Dependencies |
+|-----------|---------|--------------|
+| Layout.tsx | Main app wrapper | Header, Sidebar, Footer |
+| Sidebar.tsx | Navigation menu | NavLink, AuthContext |
+| AuthGuard.tsx | Auth protection | AuthContext |
+| WalletConnect.tsx | Wallet integration | web3 libraries |
+| ProposalCard.tsx | Proposal display | VoteButton |
+| AssetTable.tsx | Treasury assets | formatters.ts |
+| SpaceCard.tsx | DAO/Community card | formatters.ts |
+
+### Feature Relationships
+
+- **Dashboard** → Overview of all app features
+- **Proposals** → Created from Dashboard, impacts Treasury
+- **Treasury** → Controlled by proposal executions
+- **SmartContractAI** → Creates contracts for proposals
+- **Spaces** → Shows communities with proposals
+- **Admin** → Controls app-wide settings
+
+### Size Metrics
+
+| Component Category | File Count | Avg. Size (KB) |
+|-------------------|------------|--------------|
+| Pages | 10 | 15-30 KB |
+| Layout Components | 6 | 5-10 KB |
+| Common Components | 10+ | 2-5 KB |
+| Context Providers | 3+ | 5-10 KB | 

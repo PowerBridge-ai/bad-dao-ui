@@ -1,10 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Bell, Menu, Sun, Moon, ChevronDown } from 'lucide-react';
+import { useNavigate, NavLink } from 'react-router-dom';
+import { Bell, Menu, Sun, Moon, ChevronDown, LayoutDashboard, FileText, Wallet, Database, User } from 'lucide-react';
 import { useThirdwebWallet } from '../../hooks/useThirdwebWallet';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { truncateAddress } from '../../utils/address';
+import Logo from '../common/Logo';
 
 interface HeaderProps {
   title: string;
@@ -38,25 +39,71 @@ const Header = ({ title, onMenuClick }: HeaderProps) => {
   };
 
   return (
-    <header className="bg-white border-b border-neutral-light sticky top-0 z-30 transition-shadow">
+    <header className="bg-black border-b border-neutral-dark sticky top-0 z-30 transition-shadow">
       <div className="max-w-7xl mx-auto px-md py-3 flex items-center justify-between">
         <div className="flex items-center gap-md">
           <button 
             type="button"
-            className="lg:hidden text-neutral-dark hover:text-primary p-2 rounded-lg"
+            className="lg:hidden text-white hover:text-primary p-2 rounded-lg"
             onClick={onMenuClick}
             aria-label="Open menu"
           >
             <Menu size={24} />
           </button>
           
-          <h1 className="text-h3 lg:text-h2 font-bold">{title}</h1>
+          <Logo size="medium" />
+          
+          <nav className="hidden md:flex items-center ml-6 space-x-md">
+            <NavLink
+              to="/dashboard"
+              className={({ isActive }) => `
+                flex items-center gap-2 px-3 py-2 rounded-lg transition-colors
+                ${isActive ? 'text-primary bg-primary/10' : 'text-white hover:text-primary'}
+              `}
+            >
+              <LayoutDashboard size={18} />
+              <span>Dashboard</span>
+            </NavLink>
+            
+            <NavLink
+              to="/proposals"
+              className={({ isActive }) => `
+                flex items-center gap-2 px-3 py-2 rounded-lg transition-colors
+                ${isActive ? 'text-primary bg-primary/10' : 'text-white hover:text-primary'}
+              `}
+            >
+              <FileText size={18} />
+              <span>Proposals</span>
+            </NavLink>
+            
+            <NavLink
+              to="/treasury"
+              className={({ isActive }) => `
+                flex items-center gap-2 px-3 py-2 rounded-lg transition-colors
+                ${isActive ? 'text-primary bg-primary/10' : 'text-white hover:text-primary'}
+              `}
+            >
+              <Wallet size={18} />
+              <span>Treasury</span>
+            </NavLink>
+            
+            <NavLink
+              to="/smart-contract"
+              className={({ isActive }) => `
+                flex items-center gap-2 px-3 py-2 rounded-lg transition-colors
+                ${isActive ? 'text-primary bg-primary/10' : 'text-white hover:text-primary'}
+              `}
+            >
+              <Database size={18} />
+              <span>Smart Contract AI</span>
+            </NavLink>
+          </nav>
         </div>
         
         <div className="flex items-center gap-md">
           <button
             type="button"
-            className="text-neutral-dark hover:text-primary p-2 rounded-lg relative"
+            className="text-white hover:text-primary p-2 rounded-lg relative"
             aria-label="Notifications"
           >
             <Bell size={20} />
@@ -65,7 +112,7 @@ const Header = ({ title, onMenuClick }: HeaderProps) => {
           
           <button
             type="button"
-            className="text-neutral-dark hover:text-primary p-2 rounded-lg hidden md:flex"
+            className="text-white hover:text-primary p-2 rounded-lg hidden md:flex"
             onClick={toggleTheme}
             aria-label={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
           >
@@ -76,7 +123,7 @@ const Header = ({ title, onMenuClick }: HeaderProps) => {
             <button
               type="button"
               onClick={() => setDropdownOpen(!dropdownOpen)}
-              className="flex items-center gap-2 text-sm font-medium hover:bg-neutral-light/30 py-2 px-3 rounded-lg"
+              className="flex items-center gap-2 text-sm font-medium hover:bg-neutral-dark/30 py-2 px-3 rounded-lg text-white"
             >
               <div className="w-8 h-8 rounded-full bg-primary text-white flex items-center justify-center">
                 {user?.displayName?.charAt(0) || 'U'}
@@ -88,19 +135,28 @@ const Header = ({ title, onMenuClick }: HeaderProps) => {
             </button>
             
             {dropdownOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-dropdown py-1 animate-enter">
+              <div className="absolute right-0 mt-2 w-48 bg-neutral-dark rounded-lg shadow-dropdown py-1 animate-enter">
                 <button
                   onClick={() => {
                     navigate('/profile');
                     setDropdownOpen(false);
                   }}
-                  className="block w-full text-left px-4 py-2 text-body hover:bg-neutral-light/30"
+                  className="block w-full text-left px-4 py-2 text-white hover:bg-neutral-light/10"
                 >
                   Profile
                 </button>
                 <button
+                  onClick={() => {
+                    navigate('/admin');
+                    setDropdownOpen(false);
+                  }}
+                  className="block w-full text-left px-4 py-2 text-white hover:bg-neutral-light/10"
+                >
+                  Admin Settings
+                </button>
+                <button
                   onClick={handleLogout}
-                  className="block w-full text-left px-4 py-2 text-body text-accent-red hover:bg-neutral-light/30"
+                  className="block w-full text-left px-4 py-2 text-accent-red hover:bg-neutral-light/10"
                 >
                   Disconnect
                 </button>

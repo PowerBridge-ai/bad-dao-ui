@@ -78,9 +78,9 @@ const ChatInterface = ({ contractAddress, onSendMessage }: ChatInterfaceProps) =
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-240px)] md:h-[600px] card">
+    <div className="flex flex-col h-full min-h-[calc(100vh-220px)] bg-neutral-dark/30 rounded-lg">
       {/* Chat Header */}
-      <div className="p-md border-b border-neutral-light">
+      <div className="p-md border-b border-neutral-light/20">
         <h3 className="text-h3">Smart Contract Assistant</h3>
         <p className="text-body-sm text-neutral-medium">
           {contractAddress 
@@ -90,17 +90,17 @@ const ChatInterface = ({ contractAddress, onSendMessage }: ChatInterfaceProps) =
       </div>
       
       {/* Chat Messages */}
-      <div className="flex-1 overflow-y-auto p-md space-y-md">
+      <div className="flex-1 overflow-y-auto p-lg space-y-md">
         {messages.map((message) => (
           <div
             key={message.id}
             className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
           >
             <div 
-              className={`max-w-[80%] rounded-lg p-md ${
+              className={`max-w-[85%] rounded-lg p-md ${
                 message.sender === 'user' 
                   ? 'bg-primary text-white' 
-                  : 'bg-neutral-light/50'
+                  : 'bg-neutral-light/30'
               }`}
             >
               <div className="flex items-center mb-sm">
@@ -120,7 +120,7 @@ const ChatInterface = ({ contractAddress, onSendMessage }: ChatInterfaceProps) =
         
         {isLoading && (
           <div className="flex justify-start">
-            <div className="max-w-[80%] rounded-lg p-md bg-neutral-light/50">
+            <div className="max-w-[85%] rounded-lg p-md bg-neutral-light/30">
               <div className="flex items-center">
                 <Bot size={16} className="mr-1" />
                 <span className="text-caption font-medium">AI Assistant</span>
@@ -138,27 +138,27 @@ const ChatInterface = ({ contractAddress, onSendMessage }: ChatInterfaceProps) =
       </div>
       
       {/* Chat Input */}
-      <div className="p-md border-t border-neutral-light">
+      <div className="p-md border-t border-neutral-light/20">
         <form onSubmit={handleSubmit} className="flex items-center">
           <input
             type="text"
-            className="input flex-1 mr-md"
+            className="input flex-1 mr-md bg-neutral-dark/50 border-neutral-light/30 text-white"
             placeholder="Ask about contract functions, data, or actions..."
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
-            disabled={isLoading || !contractAddress}
+            disabled={isLoading}
           />
           <button
             type="submit"
             className="btn-primary p-3"
-            disabled={isLoading || !inputValue.trim() || !contractAddress}
+            disabled={isLoading || !inputValue.trim()}
           >
             <Send size={20} />
           </button>
         </form>
         {!contractAddress && (
           <p className="mt-sm text-body-sm text-neutral-medium">
-            Please select a contract to start chatting with the AI assistant.
+            No contract connected. You can still ask general blockchain questions.
           </p>
         )}
       </div>

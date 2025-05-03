@@ -24,6 +24,10 @@ const Layout = () => {
     switch (path) {
       case 'dashboard':
         return 'Dashboard';
+      case 'spaces':
+        return 'Spaces Explorer';
+      case 'create-space':
+        return 'Create Space';
       case 'proposals':
         return location.pathname.includes('/proposals/') ? 'Proposal Details' : 'Proposals';
       case 'treasury':
@@ -32,13 +36,15 @@ const Layout = () => {
         return 'Smart Contract AI';
       case 'profile':
         return 'My Profile';
+      case 'admin':
+        return 'Admin Panel';
       default:
         return 'BAD DAO';
     }
   };
 
   return (
-    <div className="flex flex-col min-h-screen bg-neutral-white">
+    <div className="flex flex-col min-h-screen bg-black text-white">
       <Header 
         title={getPageTitle()}
         onMenuClick={() => setSidebarOpen(true)} 
@@ -46,7 +52,7 @@ const Layout = () => {
       
       <div className="flex flex-1">
         {/* Desktop Sidebar */}
-        <div className="hidden lg:block">
+        <div className="hidden lg:block bg-neutral-dark">
           <Sidebar />
         </div>
         
@@ -58,10 +64,10 @@ const Layout = () => {
             }`}
           >
             <div 
-              className="absolute inset-0 bg-neutral-dark opacity-50" 
+              className="absolute inset-0 bg-black opacity-50" 
               onClick={() => setSidebarOpen(false)}
             />
-            <div className={`absolute top-0 left-0 w-64 h-full bg-white transform transition-transform duration-300 ease-in-out ${
+            <div className={`absolute top-0 left-0 w-64 h-full bg-neutral-dark transform transition-transform duration-300 ease-in-out ${
               sidebarOpen ? 'translate-x-0' : '-translate-x-full'
             }`}>
               <Sidebar onClose={() => setSidebarOpen(false)} />
