@@ -39,15 +39,38 @@ const SmartContractAssistant = ({
     GOOGLE_API_KEY: '',
     OPENROUTER_API_KEY: '',
     ANTHROPIC_API_KEY: '',
-    THIRDWEB_SECRET_KEY: ''
+    THIRDWEB_SECRET_KEY: '',
+    THIRDWEB_CLIENT_ID: ''
   });
   const [isProcessingMessage, setIsProcessingMessage] = useState(false);
   const [providerModels, setProviderModels] = useState<Record<string, string[]>>({});
 
   // Initialize on first load
   useEffect(() => {
-    // Initialize AI service
-    initAiService();
+    // Log environment variables to verify they're loaded
+    console.log("🔑 Environment variables check:", {
+      hasThirdWebSecretKey: !!process.env.THIRDWEB_SECRET_KEY,
+      secretKeyLength: process.env.THIRDWEB_SECRET_KEY?.length || 0,
+      hasThirdWebClientId: !!process.env.THIRDWEB_CLIENT_ID,
+      clientIdLength: process.env.THIRDWEB_CLIENT_ID?.length || 0
+    });
+    
+    // Initialize apiKeys from environment
+    setApiKeys({
+      OPENAI_API_KEY: process.env.OPENAI_API_KEY || '',
+      MISTRAL_API_KEY: process.env.MISTRAL_API_KEY || '',
+      GOOGLE_API_KEY: process.env.GOOGLE_API_KEY || '',
+      OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || '',
+      ANTHROPIC_API_KEY: process.env.ANTHROPIC_API_KEY || '',
+      THIRDWEB_SECRET_KEY: process.env.THIRDWEB_SECRET_KEY || '',
+      THIRDWEB_CLIENT_ID: process.env.THIRDWEB_CLIENT_ID || ''
+    });
+    
+    // Initialize AI service with these keys
+    initAiService({
+      THIRDWEB_SECRET_KEY: process.env.THIRDWEB_SECRET_KEY || '',
+      THIRDWEB_CLIENT_ID: process.env.THIRDWEB_CLIENT_ID || ''
+    });
     
     // Load existing sessions
     const loadedSessions = getChatSessions();
@@ -159,8 +182,20 @@ const SmartContractAssistant = ({
   };
 
   // Handle API key update
-  const handleApiKeyUpdate = () => {
+  const handleApiKeyUpdate = async () => {
     initAiService(apiKeys);
+    
+    // Test Nebula API connection if credentials are provided
+    if (apiKeys.THIRDWEB_SECRET_KEY) {
+      const testResult = await aiService.testNebulaApiConnection();
+      
+      if (!testResult.success) {
+        alert(`ThirdWeb Nebula API connection error: ${testResult.message}`);
+        console.error("Nebula API connection test failed:", testResult.message);
+      } else {
+        console.log("Nebula API connection test successful!");
+      }
+    }
     
     // Scan for available models after updating API keys
     scanAndSetAvailableModels();
@@ -171,11 +206,20 @@ const SmartContractAssistant = ({
   // Scan for available models from all providers
   const scanAndSetAvailableModels = async () => {
     const models = scanAvailableModels();
+    
+    // Sort models to ensure Nebula comes first
+    models.sort((a, b) => {
+      if (a.provider === 'nebula') return -1;
+      if (b.provider === 'nebula') return 1;
+      return 0;
+    });
+    
     setAvailableModels(models);
     
-    // Set default model if available
+    // Set default model if available - prioritize Nebula
     if (models.length > 0) {
-      setSelectedModel(models[0]);
+      const nebulaModel = models.find(m => m.provider === 'nebula');
+      setSelectedModel(nebulaModel || models[0]);
     }
     
     // Fetch actual models from each provider with valid API key
@@ -192,6 +236,9 @@ const SmartContractAssistant = ({
         console.error(`Error fetching models for ${model.provider}:`, err);
         // Fallback for providers that fail to return models
         switch (model.provider) {
+          case 'nebula':
+            providerModelMap[model.provider] = ['nebula'];
+            break;
           case 'openai':
             providerModelMap[model.provider] = ['gpt-3.5-turbo', 'gpt-4', 'gpt-4-turbo'];
             break;
@@ -206,9 +253,6 @@ const SmartContractAssistant = ({
             break;
           case 'openrouter':
             providerModelMap[model.provider] = ['anthropic/claude-3-opus', 'openai/gpt-4-turbo', 'mistral/mistral-large'];
-            break;
-          case 'nebula':
-            providerModelMap[model.provider] = ['nebula'];
             break;
         }
       }
@@ -355,94 +399,154 @@ const SmartContractAssistant = ({
             <h3 className="text-h3 mb-md">AI Model Settings</h3>
             
             <div className="space-y-md">
-              <div>
-                <label className="block text-body-sm font-medium mb-xs">
-                  OpenAI API Key
-                </label>
-                <input 
-                  type="text" 
-                  className="input w-full bg-neutral-dark/50 border-neutral-light/30 text-white"
-                  value={apiKeys.OPENAI_API_KEY}
-                  onChange={(e) => setApiKeys(prev => ({ ...prev, OPENAI_API_KEY: e.target.value }))}
-                  placeholder="sk-..."
-                />
-              </div>
-              
-              <div>
-                <label className="block text-body-sm font-medium mb-xs">
-                  Mistral API Key
-                </label>
-                <input 
-                  type="text" 
-                  className="input w-full bg-neutral-dark/50 border-neutral-light/30 text-white"
-                  value={apiKeys.MISTRAL_API_KEY}
-                  onChange={(e) => setApiKeys(prev => ({ ...prev, MISTRAL_API_KEY: e.target.value }))}
-                />
-              </div>
-              
-              <div>
-                <label className="block text-body-sm font-medium mb-xs">
-                  Google API Key
-                </label>
-                <input 
-                  type="text" 
-                  className="input w-full bg-neutral-dark/50 border-neutral-light/30 text-white"
-                  value={apiKeys.GOOGLE_API_KEY}
-                  onChange={(e) => setApiKeys(prev => ({ ...prev, GOOGLE_API_KEY: e.target.value }))}
-                />
-              </div>
-              
-              <div>
-                <label className="block text-body-sm font-medium mb-xs">
-                  Anthropic API Key
-                </label>
-                <input 
-                  type="text" 
-                  className="input w-full bg-neutral-dark/50 border-neutral-light/30 text-white"
-                  value={apiKeys.ANTHROPIC_API_KEY}
-                  onChange={(e) => setApiKeys(prev => ({ ...prev, ANTHROPIC_API_KEY: e.target.value }))}
-                />
-              </div>
-              
-              <div>
-                <label className="block text-body-sm font-medium mb-xs">
-                  OpenRouter API Key
-                </label>
-                <input 
-                  type="text" 
-                  className="input w-full bg-neutral-dark/50 border-neutral-light/30 text-white"
-                  value={apiKeys.OPENROUTER_API_KEY}
-                  onChange={(e) => setApiKeys(prev => ({ ...prev, OPENROUTER_API_KEY: e.target.value }))}
-                />
-              </div>
-              
-              <div>
-                <label className="block text-body-sm font-medium mb-xs">
-                  ThirdWeb Secret Key
-                </label>
-                <input 
-                  type="text" 
-                  className="input w-full bg-neutral-dark/50 border-neutral-light/30 text-white"
-                  value={apiKeys.THIRDWEB_SECRET_KEY}
-                  onChange={(e) => setApiKeys(prev => ({ ...prev, THIRDWEB_SECRET_KEY: e.target.value }))}
-                />
-              </div>
-              
-              <div className="flex justify-end space-x-sm pt-md">
-                <button 
-                  className="btn-secondary bg-neutral-light/20 text-white border-neutral-light/30 hover:bg-neutral-light/30"
-                  onClick={() => setShowSettings(false)}
+              <div className="border p-md rounded-md border-primary-light/30 bg-neutral-light/5">
+                <h4 className="text-body-lg font-semibold mb-sm">ThirdWeb Nebula Settings</h4>
+                
+                <div className="mb-sm">
+                  <label className="block text-body-sm font-medium mb-xs">
+                    ThirdWeb Secret Key (Nebula)
+                  </label>
+                  <input 
+                    type="text" 
+                    className="input w-full bg-neutral-dark/50 border-neutral-light/30 text-white"
+                    value={apiKeys.THIRDWEB_SECRET_KEY}
+                    onChange={(e) => setApiKeys(prev => ({ ...prev, THIRDWEB_SECRET_KEY: e.target.value }))}
+                    placeholder="thirdwebsk_... or just the key"
+                  />
+                  <p className="text-xs text-neutral-light mt-1">
+                    Required for smart contract interactions. Powers Nebula AI.
+                    The key will be automatically formatted if needed.
+                  </p>
+                </div>
+                
+                <div className="mb-sm">
+                  <label className="block text-body-sm font-medium mb-xs">
+                    ThirdWeb Client ID
+                  </label>
+                  <input 
+                    type="text" 
+                    className="input w-full bg-neutral-dark/50 border-neutral-light/30 text-white"
+                    value={apiKeys.THIRDWEB_CLIENT_ID}
+                    onChange={(e) => setApiKeys(prev => ({ ...prev, THIRDWEB_CLIENT_ID: e.target.value }))}
+                    placeholder="3eb..."
+                  />
+                  <p className="text-xs text-neutral-light mt-1">
+                    Required for ThirdWeb authentication. Both Secret Key and Client ID are needed.
+                  </p>
+                </div>
+                
+                <button
+                  className="btn-secondary-sm w-full mt-sm"
+                  onClick={async () => {
+                    // Test the ThirdWeb connection
+                    if (!apiKeys.THIRDWEB_SECRET_KEY || !apiKeys.THIRDWEB_CLIENT_ID) {
+                      alert("Both Secret Key and Client ID are required for testing");
+                      return;
+                    }
+                    
+                    // Update service with current values
+                    initAiService(apiKeys);
+                    
+                    // Test connection
+                    const testResult = await aiService.testNebulaApiConnection();
+                    
+                    if (testResult.success) {
+                      alert("Connection successful! ThirdWeb Nebula API is working properly.");
+                    } else {
+                      alert(`Connection failed: ${testResult.message}`);
+                    }
+                  }}
                 >
-                  Cancel
+                  Test ThirdWeb Connection
                 </button>
-                <button 
-                  className="btn-primary flex items-center"
-                  onClick={handleApiKeyUpdate}
+
+                <button
+                  className="btn-primary-sm w-full mt-sm"
+                  onClick={async () => {
+                    // Send a simple test message directly to Nebula
+                    initAiService(apiKeys);
+                    
+                    // Create a temporary chat session for testing
+                    const testSession = createChatSession();
+                    
+                    try {
+                      // Display info about which keys are being used
+                      console.log("🔑 Diagnostic test using keys:", {
+                        secretKey: apiKeys.THIRDWEB_SECRET_KEY.substring(0, 5) + "..." + 
+                                  apiKeys.THIRDWEB_SECRET_KEY.substring(apiKeys.THIRDWEB_SECRET_KEY.length - 5),
+                        clientId: apiKeys.THIRDWEB_CLIENT_ID
+                      });
+                      
+                      // Set this model as active for the test
+                      setSelectedModel({
+                        provider: 'nebula',
+                        model: 'nebula',
+                        apiKey: apiKeys.THIRDWEB_SECRET_KEY,
+                        clientId: apiKeys.THIRDWEB_CLIENT_ID,
+                        endpoint: 'https://nebula-api.thirdweb.com/chat'
+                      });
+                      
+                      const response = await sendMessageToAI(
+                        testSession.id, 
+                        "Hello, this is a diagnostic test for Nebula API. What can you tell me about smart contracts?",
+                        {
+                          provider: 'nebula',
+                          model: 'nebula',
+                          apiKey: apiKeys.THIRDWEB_SECRET_KEY,
+                          clientId: apiKeys.THIRDWEB_CLIENT_ID,
+                          endpoint: 'https://nebula-api.thirdweb.com/chat'
+                        }
+                      );
+                      
+                      console.log("📝 Diagnostic test response:", response);
+                      alert(`Test complete. Response received: "${response.text.length > 100 ? response.text.substring(0, 100) + "..." : response.text}"`);
+                    } catch (error) {
+                      console.error("❌ Diagnostic test error:", error);
+                      alert(`Test failed: ${error instanceof Error ? error.message : "Unknown error"}`);
+                    } finally {
+                      // Clean up the test session
+                      deleteChatSession(testSession.id);
+                    }
+                  }}
                 >
-                  <Check size={18} className="mr-1" />
-                  Save Settings
+                  Run Diagnostic Test
                 </button>
               </div>
+              
+              <div className="border p-md rounded-md border-neutral-light/30 bg-neutral-light/5">
+                <h4 className="text-body-lg font-semibold mb-sm">Backup AI Providers</h4>
+                
+                <div>
+                  <label className="block text-body-sm font-medium mb-xs">
+                    OpenRouter API Key
+                  </label>
+                  <input 
+                    type="text" 
+                    className="input w-full bg-neutral-dark/50 border-neutral-light/30 text-white"
+                    value={apiKeys.OPENROUTER_API_KEY}
+                    onChange={(e) => setApiKeys(prev => ({ ...prev, OPENROUTER_API_KEY: e.target.value }))}
+                    placeholder="sk-or-..."
+                  />
+                  <p className="text-xs text-neutral-light mt-1">
+                    Fallback option for general AI assistance. Uses Claude via OpenRouter.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex justify-end gap-sm mt-lg">
+              <button
+                className="btn-secondary"
+                onClick={() => setShowSettings(false)}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn-primary"
+                onClick={handleApiKeyUpdate}
+              >
+                Save Changes
+              </button>
             </div>
           </div>
         </div>

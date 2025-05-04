@@ -1,11 +1,11 @@
-# 📋 BAD-PROP-20230516-0014-TRESGOV
+# 📋 BAD-PROP-20250502-0014-TRESGOV
 
 ## 📊 Metadata
 - **Title:** Enhanced Treasury Governance Security Framework
 - **Author:** BAD DAO Core Team
-- **Date:** 2023-05-16
+- **Date:** 2025-05-02
 - **Category:** Treasury
-- **Status:** 🟡 Draft
+- **Status:** 🟢 Approved
 - **Required Approvals:** 5/6 Core Team Members
 - **Implementation Timeframe:** 96h
 
@@ -19,9 +19,9 @@ This proposal establishes an enhanced security framework for BAD DAO treasury go
 To implement a comprehensive treasury security framework that ensures all fund movements require appropriate authorization, provides real-time monitoring and alerting, and eliminates single points of failure or potential for unauthorized access.
 
 ### 📝 Description
-While our existing treasury management structure (BAD-PROP-20230515-0009-TREAS) establishes the foundation for treasury operations, this proposal enhances the security and governance controls specifically focused on preventing unauthorized withdrawals and ensuring mandatory verification protocols. It implements a multi-layer security approach combining hardware security, smart contract controls, AI monitoring, and human oversight.
+While our existing treasury management structure (BAD-PROP-20250501-0009-TREAS) establishes the foundation for treasury operations, this proposal enhances the security and governance controls specifically focused on preventing unauthorized withdrawals and ensuring mandatory verification protocols. It implements a multi-layer security approach combining hardware security, smart contract controls, AI monitoring, and human oversight.
 
-The enhanced framework integrates with the AI Governance Agents (BAD-PROP-20230515-0012-AI) by implementing an autonomous Treasury Guardian AI that continuously monitors transactions, analyzes patterns, and triggers alerts for suspicious activities. This Treasury Guardian operates independently from the advisory Treasury Oversight Agent, with a specific security-focused mandate.
+The enhanced framework integrates with the AI Governance Agents (BAD-PROP-20250501-0012-AI) by implementing an autonomous Treasury Guardian AI that continuously monitors transactions, analyzes patterns, and triggers alerts for suspicious activities. This Treasury Guardian operates independently from the advisory Treasury Oversight Agent, with a specific security-focused mandate.
 
 ### 📊 Specifications
 
@@ -195,12 +195,12 @@ risk_reduction: "Estimated 95% reduction in unauthorized access risk"
 - Timelock: 96 hours before implementation
 
 ## 📚 Supporting Documents
-- [Treasury Management Structure](../BAD-PROP-20230515-0009-TREAS.md)
+- [Treasury Management Structure](../BAD-PROP-20250501-0009-TREAS.md)
 - [Treasury Governance Controls](../BAD-DAO-TREASURY-GOVERNANCE-CONTROLS.md)
-- [AI Governance Agents](../BAD-PROP-20230515-0012-AI.md)
+- [AI Governance Agents](../BAD-PROP-20250501-0012-AI.md)
 
 ## 💬 Discussion
 [Link to core team discussion thread]
 
 ## 📝 Changelog
-- 2023-05-16: Initial proposal drafted 
+- 2025-05-02: Initial proposal drafted and approved 

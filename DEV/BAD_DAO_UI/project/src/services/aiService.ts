@@ -45,12 +45,20 @@ export interface AiModelConfig {
   endpoint?: string;
   temperature?: number;
   maxTokens?: number;
+  clientId?: string;
 }
 
 const LOCAL_STORAGE_KEY = 'ai_chat_sessions';
 
 // Default model configurations
 const defaultModels: Record<string, AiModelConfig> = {
+  nebula: {
+    provider: 'nebula',
+    model: 'nebula',
+    apiKey: process.env.THIRDWEB_SECRET_KEY || '',
+    endpoint: 'https://nebula-api.thirdweb.com/chat',
+    clientId: process.env.THIRDWEB_CLIENT_ID || ''
+  },
   openai: {
     provider: 'openai',
     model: 'gpt-4',
@@ -61,7 +69,7 @@ const defaultModels: Record<string, AiModelConfig> = {
   mistral: {
     provider: 'mistral',
     model: 'mistral-large-latest',
-    apiKey: process.env.MISTRAL_API_KEY || '',
+    apiKey: process.env.MISTRAL_API_KEY || 'YkPOw8pc2totUqczBksPrC3Z5s7Plw0y',
     temperature: 0.7,
     maxTokens: 2048
   },
@@ -75,7 +83,7 @@ const defaultModels: Record<string, AiModelConfig> = {
   openrouter: {
     provider: 'openrouter',
     model: 'anthropic/claude-3-opus',
-    apiKey: process.env.OPENROUTER_API_KEY || '',
+    apiKey: process.env.OPENROUTER_API_KEY || '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',
     temperature: 0.7,
     maxTokens: 4096
   },
@@ -85,30 +93,52 @@ const defaultModels: Record<string, AiModelConfig> = {
     apiKey: process.env.ANTHROPIC_API_KEY || '',
     temperature: 0.7,
     maxTokens: 4096
-  },
-  nebula: {
-    provider: 'nebula',
-    model: 'nebula',
-    apiKey: process.env.THIRDWEB_SECRET_KEY || '',
-    endpoint: 'https://nebula-api.thirdweb.com/chat'
   }
 };
 
-// Initialize the service with provided API keys or use environment variables
-export const initAiService = (apiKeys?: Record<string, string>): void => {
-  if (apiKeys) {
-    if (apiKeys.OPENAI_API_KEY) defaultModels.openai.apiKey = apiKeys.OPENAI_API_KEY;
-    if (apiKeys.MISTRAL_API_KEY) defaultModels.mistral.apiKey = apiKeys.MISTRAL_API_KEY;
-    if (apiKeys.GOOGLE_API_KEY) defaultModels.google.apiKey = apiKeys.GOOGLE_API_KEY;
-    if (apiKeys.OPENROUTER_API_KEY) defaultModels.openrouter.apiKey = apiKeys.OPENROUTER_API_KEY;
-    if (apiKeys.ANTHROPIC_API_KEY) defaultModels.anthropic.apiKey = apiKeys.ANTHROPIC_API_KEY;
-    if (apiKeys.THIRDWEB_SECRET_KEY) defaultModels.nebula.apiKey = apiKeys.THIRDWEB_SECRET_KEY;
+// Initialize AI service
+export const initAiService = (credentials?: {
+  OPENAI_API_KEY?: string;
+  MISTRAL_API_KEY?: string;
+  GOOGLE_API_KEY?: string;
+  OPENROUTER_API_KEY?: string;
+  ANTHROPIC_API_KEY?: string;
+  THIRDWEB_SECRET_KEY?: string;
+  THIRDWEB_CLIENT_ID?: string;
+}): typeof defaultModels => {
+  // Set API keys from parameters or environment variables
+  if (credentials) {
+    if (credentials.OPENAI_API_KEY) defaultModels.openai.apiKey = credentials.OPENAI_API_KEY;
+    if (credentials.MISTRAL_API_KEY) defaultModels.mistral.apiKey = credentials.MISTRAL_API_KEY;
+    if (credentials.GOOGLE_API_KEY) defaultModels.google.apiKey = credentials.GOOGLE_API_KEY;
+    if (credentials.OPENROUTER_API_KEY) defaultModels.openrouter.apiKey = credentials.OPENROUTER_API_KEY;
+    if (credentials.ANTHROPIC_API_KEY) defaultModels.anthropic.apiKey = credentials.ANTHROPIC_API_KEY;
   }
+  
+  // Special handling for ThirdWeb credentials with fallbacks
+  defaultModels.nebula.apiKey = credentials?.THIRDWEB_SECRET_KEY || 
+    process.env.THIRDWEB_SECRET_KEY || 
+    // Fallback hardcoded key
+    'ZuG7FQ2uD7F5sJzckw02P_SNAiEHtWsUA46AYC124wHsZxqmgz84RPDsuFO_dfUF6Uj6K2e4XtzN_ODQGO41UA';
+  
+  defaultModels.nebula.clientId = credentials?.THIRDWEB_CLIENT_ID || 
+    process.env.THIRDWEB_CLIENT_ID || 
+    // Fallback hardcoded client ID
+    '3eb01797a1d9f0b74a8f3e1dc5b624ab';
   
   // Initialize chat sessions from localStorage if available
   if (typeof localStorage !== 'undefined' && !localStorage.getItem(LOCAL_STORAGE_KEY)) {
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify([]));
   }
+  
+  debugLog.init('🔑', 'AI Service Initialized', {
+    nebulaConfigured: !!defaultModels.nebula.apiKey,
+    nebulaKeyLength: defaultModels.nebula.apiKey?.length || 0,
+    clientIdConfigured: !!defaultModels.nebula.clientId,
+    clientIdLength: defaultModels.nebula.clientId?.length || 0
+  });
+  
+  return defaultModels;
 };
 
 // Get all chat sessions
@@ -277,11 +307,55 @@ const extractMetadata = (response: string) => {
   return metadata;
 };
 
+// Debug logging utilities
+const debugLog = {
+  api: (emoji: string, message: string, data?: any) => {
+    console.log(`📡 [NEBULA_API] ${emoji} ${message}`, data || '');
+  },
+  auth: (emoji: string, message: string, data?: any) => {
+    console.log(`🔐 [NEBULA_AUTH] ${emoji} ${message}`, data || '');
+  },
+  error: (emoji: string, message: string, data?: any) => {
+    console.error(`❌ [NEBULA_ERROR] ${emoji} ${message}`, data || '');
+  },
+  debug: (emoji: string, message: string, data?: any) => {
+    console.log(`🔍 [NEBULA_DEBUG] ${emoji} ${message}`, data || '');
+  },
+  success: (emoji: string, message: string, data?: any) => {
+    console.log(`✅ [NEBULA_SUCCESS] ${emoji} ${message}`, data || '');
+  },
+  init: (emoji: string, message: string, data?: any) => {
+    console.log(`🚀 [NEBULA_INIT] ${emoji} ${message}`, data || '');
+  }
+};
+
+// Helper function to ensure ThirdWeb secret key is correctly formatted
+const formatThirdWebSecretKey = (key: string): string => {
+  if (!key) {
+    debugLog.error('🚫', 'Empty ThirdWeb secret key provided');
+    return '';
+  }
+  
+  // Clean the key - remove any whitespace that might have been accidentally included
+  const cleanKey = key.trim();
+  
+  // Log key details for debugging
+  debugLog.debug('🔑', `Processing ThirdWeb key (${cleanKey.length} chars)`, {
+    firstChars: cleanKey.substring(0, 5) + '...',
+    lastChars: '...' + cleanKey.substring(cleanKey.length - 5),
+    hasPrefix: cleanKey.startsWith('thirdwebsk_') || cleanKey.startsWith('thirdwebpk_')
+  });
+  
+  // Return the key as-is, without trying to add any prefix
+  // ThirdWeb's backend will handle the proper format requirements
+  return cleanKey;
+};
+
 // Send a message to the AI
 export const sendMessageToAI = async (
   sessionId: string,
   message: string,
-  modelConfig: AiModelConfig = defaultModels.openai
+  modelConfig: AiModelConfig = defaultModels.openrouter
 ): Promise<Message> => {
   const session = getChatSessionById(sessionId);
   if (!session) {
@@ -510,50 +584,206 @@ const sendMessageToNebula = async (
   contractAddress?: string
 ): Promise<string> => {
   if (!defaultModels.nebula.apiKey) {
-    throw new Error('Thirdweb API key is required for Nebula');
+    debugLog.error('🚫', 'Missing ThirdWeb Secret Key');
+    return "Thirdweb Secret Key is required for Nebula. Please add it in the settings.";
   }
   
   try {
-    const requestBody: any = {
-      message,
+    // Make sure we have the correctly formatted secret key
+    const formattedSecretKey = formatThirdWebSecretKey(defaultModels.nebula.apiKey);
+    
+    if (!formattedSecretKey) {
+      debugLog.error('🚫', 'Invalid ThirdWeb Secret Key format');
+      return "Invalid ThirdWeb Secret Key format. The key appears to be malformed.";
+    }
+    
+    debugLog.api('🔄', 'Preparing Nebula API request', {
+      hasKey: !!formattedSecretKey,
+      keyLength: formattedSecretKey.length,
+      keyStart: formattedSecretKey.substring(0, 10) + '...',
+      hasClientId: !!defaultModels.nebula.clientId,
+      clientIdLength: defaultModels.nebula.clientId?.length || 0,
+      clientIdStart: defaultModels.nebula.clientId?.substring(0, 10) + '...',
+      message: message.substring(0, 30) + (message.length > 30 ? '...' : ''),
+      contractAddress: contractAddress || 'None'
+    });
+    
+    // Define the request body type
+    interface NebulaRequestBody {
+      message: string;
+      stream: boolean;
+      user_id: string;
       execute_config: {
-        mode: "client"
+        mode: string;
+      };
+      context?: {
+        contract_address: string;
+      };
+    }
+    
+    // Prepare request body with smart contract context if available
+    const requestBody: NebulaRequestBody = {
+      message: contractAddress 
+        ? `[Context: Analyzing smart contract at address ${contractAddress}] ${message}`
+        : `[Context: General blockchain assistant] ${message}`,
+      stream: false,
+      user_id: "default-user", // Track conversation history with user ID
+      execute_config: {
+        mode: "client" // Client mode allows user to approve transactions
       }
     };
     
-    // If contract address is provided, add it to the request
+    // If contract address is provided, add it to the request context
     if (contractAddress) {
       requestBody.context = {
         contract_address: contractAddress
       };
+      debugLog.api('🏠', `Added contract context: ${contractAddress}`);
     }
     
-    const response = await fetch(defaultModels.nebula.endpoint || 'https://nebula-api.thirdweb.com/chat', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-secret-key': defaultModels.nebula.apiKey
-      },
-      body: JSON.stringify(requestBody)
+    // Prepare headers
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'x-secret-key': formattedSecretKey
+    };
+    
+    // Add client ID if available
+    if (defaultModels.nebula.clientId) {
+      headers['x-client-id'] = defaultModels.nebula.clientId;
+      debugLog.auth('🆔', `Added client ID to request: ${defaultModels.nebula.clientId.substring(0, 8)}...`);
+    } else {
+      debugLog.auth('⚠️', 'No client ID provided. This is likely required for ThirdWeb authentication.');
+      return "ThirdWeb Client ID is required for Nebula. Please add it in the settings.";
+    }
+    
+    // Validate the API endpoint
+    const endpoint = defaultModels.nebula.endpoint || 'https://nebula-api.thirdweb.com/chat';
+    debugLog.api('🌐', `Using Nebula API endpoint: ${endpoint}`);
+    
+    // Log the request headers (sanitized)
+    const sanitizedHeaders = { ...headers };
+    if (sanitizedHeaders['x-secret-key']) {
+      sanitizedHeaders['x-secret-key'] = sanitizedHeaders['x-secret-key'].substring(0, 12) + '...';
+    }
+    if (sanitizedHeaders['x-client-id']) {
+      sanitizedHeaders['x-client-id'] = sanitizedHeaders['x-client-id'].substring(0, 8) + '...';
+    }
+    
+    // Log the final request
+    debugLog.api('📤', 'Sending request to Nebula API', {
+      endpoint,
+      headers: sanitizedHeaders,
+      body: {
+        message: requestBody.message.substring(0, 30) + (requestBody.message.length > 30 ? '...' : ''),
+        has_context: !!requestBody.context,
+        user_id: requestBody.user_id,
+        mode: requestBody.execute_config.mode
+      }
     });
     
-    if (!response.ok) {
-      throw new Error(`Nebula API error: ${response.statusText}`);
+    try {
+      // Enhanced logging before making request
+      console.log("🌐 Making Nebula API request with:", {
+        endpoint,
+        secretKeyLength: formattedSecretKey.length,
+        clientIdLength: defaultModels.nebula.clientId?.length || 0
+      });
+      
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(requestBody)
+      });
+      
+      // Enhanced response handling
+      debugLog.api('📥', `Received response with status: ${response.status} ${response.statusText}`);
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        let errorInfo = "No details available";
+        
+        try {
+          const errorJson = JSON.parse(errorText);
+          errorInfo = JSON.stringify(errorJson, null, 2);
+          debugLog.error('🚫', `Nebula API error response (${response.status})`, errorJson);
+        } catch (e) {
+          errorInfo = errorText;
+          debugLog.error('🚫', `Nebula API error response (${response.status})`, errorText);
+        }
+        
+        // Special handling for 401 errors
+        if (response.status === 401) {
+          debugLog.error('🔒', 'Authentication failed - Troubleshooting tips:');
+          debugLog.error('🔑', '1. Generate new API credentials from ThirdWeb dashboard');
+          debugLog.error('🆔', '2. Make sure you have both Client ID and Secret Key configured');
+          debugLog.error('🔄', '3. Check if the API keys have the correct permissions');
+          debugLog.error('🔐', '4. Verify your account has access to the Nebula API');
+          
+          return "Authentication failed. Please generate new credentials from the ThirdWeb dashboard with permissions for the Nebula API. Make sure to include both the Client ID and Secret Key in your settings.";
+        }
+        
+        throw new Error(`Nebula API error: ${response.status} - ${errorInfo}`);
+      }
+      
+      const data = await response.json();
+      debugLog.success('✅', 'Successfully received response from Nebula API');
+      
+      // Add detailed logging of the response data
+      console.log('📦 Full Nebula API response:', JSON.stringify(data, null, 2));
+      
+      if (!data || typeof data !== 'object') {
+        debugLog.error('❌', 'Invalid response data format:', data);
+        return 'Invalid response format received from Nebula API. Expected JSON object.';
+      }
+      
+      // Handle new response format - API now uses 'message' field instead of 'response'
+      const responseContent = data.response || data.message;
+      
+      if (!responseContent) {
+        debugLog.error('❌', 'No response or message field in data:', data);
+        return 'Nebula API response is missing both "response" and "message" fields. This may indicate a configuration issue or API change.';
+      }
+      
+      // Process any blockchain actions returned by Nebula
+      if (data.actions && data.actions.length > 0) {
+        debugLog.api('🔄', `Nebula returned ${data.actions.length} blockchain actions`);
+        
+        // Format action details for user approval
+        const actionDetails = data.actions.map((action: any, index: number) => {
+          // Extract key details about the action
+          const type = action.type || 'Transaction';
+          const to = action.to || 'Unknown contract';
+          const value = action.value ? `${action.value} ETH` : '0 ETH';
+          
+          debugLog.debug('🔍', `Action ${index + 1} details`, {
+            type,
+            to,
+            value,
+            data: action.data ? `${action.data.substring(0, 30)}...` : 'No data'
+          });
+          
+          return `**Action ${index + 1}:** ${type}\n- To: \`${to}\`\n- Value: ${value}`;
+        }).join('\n\n');
+        
+        return `${responseContent}\n\n---\n\n### 🔷 Blockchain Action Available\n\nNebula suggests the following action:\n\n${actionDetails}\n\nTo execute this action, please approve it using the interface.`;
+      }
+      
+      return responseContent || 'No response content from Nebula API';
+    } catch (error) {
+      debugLog.error('💥', 'Error during Nebula API request', error);
+      
+      if (error instanceof Error) {
+        return `Error: ${error.message}`;
+      }
+      return 'Unknown error occurred when calling Nebula API';
     }
-    
-    const data = await response.json();
-    
-    // Process any actions returned by Nebula
-    if (data.actions && data.actions.length > 0) {
-      // Just return information about the action for now
-      // In a real implementation, we would handle the transaction with user approval
-      return `${data.response}\n\n**Action Required**\n\nNebula suggests the following blockchain action:\n\`\`\`json\n${JSON.stringify(data.actions[0], null, 2)}\n\`\`\`\n\nTo execute this action, please approve it in the interface.`;
-    }
-    
-    return data.response || data.message || 'No response from Nebula API';
   } catch (error) {
-    console.error('Error calling Nebula API:', error);
-    throw error;
+    debugLog.error('💥', 'Error during Nebula API request', error);
+    
+    if (error instanceof Error) {
+      return `Error: ${error.message}`;
+    }
+    return 'Unknown error occurred when calling Nebula API';
   }
 };
 
@@ -565,9 +795,13 @@ export const executeNebulaTransaction = async (
   try {
     const txData = JSON.parse(actionData);
     
+    // Format the secret key properly
+    const formattedSecretKey = formatThirdWebSecretKey(defaultModels.nebula.apiKey);
+    
     // Create Thirdweb client
     const client = createThirdwebClient({
-      secretKey: defaultModels.nebula.apiKey
+      secretKey: formattedSecretKey,
+      clientId: defaultModels.nebula.clientId
     });
     
     // Generate account (in a real app, this would be the user's connected wallet)
@@ -690,6 +924,12 @@ export const autoSelectModel = (message: string): AiModelConfig => {
     throw new Error('No AI models available. Please configure API keys.');
   }
   
+  // Always prioritize Nebula if available
+  const nebulaModel = availableModels.find(m => m.provider === 'nebula');
+  if (nebulaModel && nebulaModel.apiKey) {
+    return nebulaModel;
+  }
+  
   // Check for blockchain/smart contract specific keywords
   const blockchainKeywords = [
     'contract', 'blockchain', 'ethereum', 'token', 'wallet', 'transaction',
@@ -700,15 +940,18 @@ export const autoSelectModel = (message: string): AiModelConfig => {
     message.toLowerCase().includes(keyword)
   );
   
-  // Prioritize Nebula for blockchain queries
-  if (hasBlockchainContext && availableModels.find(m => m.provider === 'nebula')) {
-    return availableModels.find(m => m.provider === 'nebula')!;
+  // Fallback to OpenRouter if Nebula not available for blockchain queries
+  if (hasBlockchainContext) {
+    const openRouterModel = availableModels.find(m => m.provider === 'openrouter');
+    if (openRouterModel) {
+      return openRouterModel;
+    }
   }
   
-  // Prioritize more capable models for complex queries
+  // Fallback to other capable models
   if (message.length > 200) {
     // Try to use the most capable models first
-    const preferredProviders = ['anthropic', 'openai', 'openrouter', 'mistral', 'google'];
+    const preferredProviders = ['anthropic', 'openai', 'mistral', 'google'];
     
     for (const provider of preferredProviders) {
       const model = availableModels.find(m => m.provider === provider);
@@ -718,6 +961,203 @@ export const autoSelectModel = (message: string): AiModelConfig => {
   
   // Default to first available model
   return availableModels[0];
+};
+
+// Check API health and get available models
+export const checkApiHealth = async (): Promise<Record<string, { available: boolean, models: string[] }>> => {
+  const results: Record<string, { available: boolean, models: string[] }> = {};
+  
+  // Check Nebula first
+  try {
+    const nebulaModels = await getModelsFromProvider('nebula', defaultModels.nebula.apiKey);
+    results.nebula = {
+      available: nebulaModels.length > 0,
+      models: nebulaModels
+    };
+  } catch (error) {
+    console.error('Error checking Nebula API:', error);
+    results.nebula = {
+      available: false,
+      models: []
+    };
+  }
+  
+  // Check OpenRouter
+  try {
+    const openRouterModels = await getModelsFromProvider('openrouter', defaultModels.openrouter.apiKey);
+    results.openrouter = {
+      available: openRouterModels.length > 0,
+      models: openRouterModels
+    };
+  } catch (error) {
+    console.error('Error checking OpenRouter API:', error);
+    results.openrouter = {
+      available: false,
+      models: []
+    };
+  }
+  
+  // Check Mistral
+  try {
+    const mistralModels = await getModelsFromProvider('mistral', defaultModels.mistral.apiKey);
+    results.mistral = {
+      available: mistralModels.length > 0,
+      models: mistralModels
+    };
+  } catch (error) {
+    console.error('Error checking Mistral API:', error);
+    results.mistral = {
+      available: false,
+      models: []
+    };
+  }
+  
+  // Check other providers if their API keys are available
+  const otherProviders = ['openai', 'google', 'anthropic'];
+  for (const provider of otherProviders) {
+    if (defaultModels[provider].apiKey) {
+      try {
+        const models = await getModelsFromProvider(provider, defaultModels[provider].apiKey);
+        results[provider] = {
+          available: models.length > 0,
+          models
+        };
+      } catch (error) {
+        console.error(`Error checking ${provider} API:`, error);
+        results[provider] = {
+          available: false,
+          models: []
+        };
+      }
+    } else {
+      results[provider] = {
+        available: false,
+        models: []
+      };
+    }
+  }
+  
+  return results;
+};
+
+// Test Nebula API connection
+export const testNebulaApiConnection = async (): Promise<{ success: boolean; message: string }> => {
+  try {
+    // Check if keys are available
+    if (!defaultModels.nebula.apiKey) {
+      return { 
+        success: false, 
+        message: "Missing ThirdWeb Secret Key" 
+      };
+    }
+
+    if (!defaultModels.nebula.clientId) {
+      return {
+        success: false,
+        message: "Missing ThirdWeb Client ID - this is required for authentication"
+      };
+    }
+
+    // Format the secret key
+    const formattedSecretKey = formatThirdWebSecretKey(defaultModels.nebula.apiKey);
+    
+    if (!formattedSecretKey) {
+      return {
+        success: false,
+        message: "Invalid ThirdWeb Secret Key format"
+      };
+    }
+    
+    console.log("🔑 Secret Key Info:", {
+      length: formattedSecretKey.length,
+      firstChars: formattedSecretKey.substring(0, 5) + '...',
+      lastChars: '...' + formattedSecretKey.substring(formattedSecretKey.length - 5),
+    });
+    
+    console.log("🆔 Client ID Info:", {
+      length: defaultModels.nebula.clientId.length,
+      value: defaultModels.nebula.clientId,
+    });
+    
+    // Prepare headers with both required credentials
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      'x-secret-key': formattedSecretKey,
+      'x-client-id': defaultModels.nebula.clientId
+    };
+    
+    // Simple test request
+    const requestBody = {
+      message: "test connection",
+      stream: false,
+      user_id: "connection-test",
+      execute_config: {
+        mode: "client"
+      }
+    };
+    
+    const endpoint = defaultModels.nebula.endpoint || 'https://nebula-api.thirdweb.com/chat';
+    
+    debugLog.auth('🔄', "Testing Nebula API connection", {
+      endpoint,
+      secretKeyLength: formattedSecretKey.length,
+      clientIdLength: defaultModels.nebula.clientId.length
+    });
+    
+    // Make the request
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(requestBody)
+    });
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      
+      debugLog.error('🚫', `Nebula API test failed (${response.status})`, {
+        status: response.status,
+        statusText: response.statusText,
+        responseHeaders: Object.fromEntries(response.headers.entries()),
+        errorBody: errorText
+      });
+      
+      if (response.status === 401) {
+        // Provide detailed advice for 401 errors
+        return {
+          success: false,
+          message: `Authentication failed (401): Please verify your ThirdWeb credentials. Try generating new credentials from the ThirdWeb dashboard with specific permissions for the Nebula API. Error details: ${errorText}`
+        };
+      }
+      
+      return {
+        success: false,
+        message: `API Error (${response.status}): ${errorText || response.statusText}`
+      };
+    }
+    
+    const data = await response.json();
+    debugLog.success('✅', "Nebula API connection successful!");
+    
+    // Log full test response
+    console.log('📦 Nebula test response:', JSON.stringify(data, null, 2));
+    
+    // Handle either response or message field
+    const responseContent = data.response || data.message || '';
+    
+    return {
+      success: true,
+      message: "Connection successful! ThirdWeb Nebula API is working properly." +
+        (responseContent ? ` Message: "${responseContent.substring(0, 50)}${responseContent.length > 50 ? '...' : ''}"` : " No response content found.")
+    };
+  } catch (error) {
+    debugLog.error('💥', "Nebula API test error:", error);
+    return {
+      success: false,
+      message: error instanceof Error 
+        ? `Error connecting to ThirdWeb Nebula API: ${error.message}` 
+        : "Unknown error testing connection to ThirdWeb Nebula API"
+    };
+  }
 };
 
 export default {
@@ -732,5 +1172,7 @@ export default {
   executeNebulaTransaction,
   scanAvailableModels,
   getModelsFromProvider,
-  autoSelectModel
+  autoSelectModel,
+  checkApiHealth,
+  testNebulaApiConnection
 }; 

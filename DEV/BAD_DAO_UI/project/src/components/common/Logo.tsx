@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 
 interface LogoProps {
-  size?: 'small' | 'medium' | 'large';
+  size?: 'small' | 'medium' | 'large' | 'xlarge';
 }
 
 const Logo = ({ size = 'medium' }: LogoProps) => {
@@ -9,6 +9,7 @@ const Logo = ({ size = 'medium' }: LogoProps) => {
     small: 'h-6',
     medium: 'h-8',
     large: 'h-12',
+    xlarge: 'h-24',
   };
 
   return (

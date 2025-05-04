@@ -1,6 +1,21 @@
 import { useMemo } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FileText, Wallet, Database, User, X, Settings, Compass, Bot } from 'lucide-react';
+import { 
+  LayoutDashboard, 
+  FileText, 
+  Wallet, 
+  Database, 
+  User, 
+  X, 
+  Settings, 
+  Compass, 
+  Bot,
+  KanbanSquare, 
+  Users, 
+  Award, 
+  UserPlus,
+  BookOpen
+} from 'lucide-react';
 import Logo from '../common/Logo';
 
 interface SidebarProps {
@@ -22,6 +37,31 @@ const Sidebar = ({ onClose }: SidebarProps) => {
       icon: <Compass size={20} />,
     },
     {
+      name: 'Project Management',
+      path: '/project-management',
+      icon: <KanbanSquare size={20} />,
+    },
+    {
+      name: 'DAOs & Communities',
+      path: '/project-management/daos',
+      icon: <Users size={20} />,
+    },
+    {
+      name: 'Contributors',
+      path: '/project-management/contributors',
+      icon: <UserPlus size={20} />,
+    },
+    {
+      name: 'Bounties',
+      path: '/project-management/bounties',
+      icon: <Award size={20} />,
+    },
+    {
+      name: 'Academy',
+      path: '/academy',
+      icon: <BookOpen size={20} />,
+    },
+    {
       name: 'Proposals',
       path: '/proposals',
       icon: <FileText size={20} />,
@@ -32,7 +72,7 @@ const Sidebar = ({ onClose }: SidebarProps) => {
       icon: <Wallet size={20} />,
     },
     {
-      name: 'AI Assistant',
+      name: 'Smart Contract AI',
       path: '/ai-assistant',
       icon: <Bot size={20} />,
     },

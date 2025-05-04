@@ -33,7 +33,7 @@ const ConnectWallet = () => {
     setLoginError(null);
     
     try {
-      await connect(wallet);
+      await connect({ wallet });
       navigate(from, { replace: true });
     } catch (error) {
       console.error('Wallet connection error:', error);
@@ -90,17 +90,13 @@ const ConnectWallet = () => {
   };
 
   return (
-    <div className="min-h-screen bg-neutral-light/20 flex flex-col justify-center items-center p-md">
+    <div className="min-h-screen flex flex-col justify-center items-center p-md">
       <div className="w-full max-w-md">
-        <div className="text-center mb-xl">
-          <Logo size="large" />
-          <h1 className="text-h1 mt-md font-bold text-primary">Welcome to BAD DAO</h1>
-          <p className="text-body-lg text-neutral-medium mt-sm">
-            Connect your wallet or sign in to access the governance platform
-          </p>
+        <div className="text-center mb-xl flex justify-center">
+          <Logo size="xlarge" />
         </div>
         
-        <div className="bg-white rounded-xl shadow-card p-xl">
+        <div className="bg-transparent backdrop-blur-sm rounded-xl p-xl">
           {(loginError || authError) && (
             <div className="mb-lg p-md rounded-lg bg-accent-red/10 flex items-start">
               <AlertCircle size={18} className="text-accent-red shrink-0 mt-0.5 mr-sm" />
@@ -111,34 +107,34 @@ const ConnectWallet = () => {
           {showEmailForm ? (
             <form onSubmit={handleEmailLogin} className="space-y-md">
               <div>
-                <label htmlFor="email" className="label block text-neutral-dark font-medium mb-1">Email</label>
+                <label htmlFor="email" className="label block text-white font-medium mb-1">Email</label>
                 <div className="relative">
                   <input
                     type="email"
                     id="email"
-                    className="input w-full pl-10 bg-neutral-light/20 border border-neutral-light rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                    className="input w-full pl-10 bg-neutral-dark/50 border border-neutral-light rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-white"
                     placeholder="your@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
                   />
-                  <Mail size={18} className="absolute left-3 top-3.5 text-neutral-medium" />
+                  <Mail size={18} className="absolute left-3 top-3.5 text-neutral-light" />
                 </div>
               </div>
               
               <div>
-                <label htmlFor="password" className="label block text-neutral-dark font-medium mb-1">Password</label>
+                <label htmlFor="password" className="label block text-white font-medium mb-1">Password</label>
                 <div className="relative">
                   <input
                     type="password"
                     id="password"
-                    className="input w-full pl-10 bg-neutral-light/20 border border-neutral-light rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary"
+                    className="input w-full pl-10 bg-neutral-dark/50 border border-neutral-light rounded-lg p-2.5 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary text-white"
                     placeholder="••••••••"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
                   />
-                  <Lock size={18} className="absolute left-3 top-3.5 text-neutral-medium" />
+                  <Lock size={18} className="absolute left-3 top-3.5 text-neutral-light" />
                 </div>
               </div>
               
@@ -162,38 +158,53 @@ const ConnectWallet = () => {
             <div className="space-y-md">
               <button
                 type="button"
-                className="btn-secondary w-full flex items-center justify-center gap-md bg-neutral-light/30 border border-neutral-light rounded-lg py-2.5 font-medium hover:bg-neutral-light/50 transition-colors"
+                className="btn-secondary w-full flex items-center justify-center gap-md bg-neutral-dark/50 border border-neutral-light rounded-lg py-2.5 font-medium hover:bg-neutral-dark/70 transition-colors text-white"
                 onClick={() => handleWalletConnect(metamask)}
                 disabled={isLoading}
               >
-                <img src="https://raw.githubusercontent.com/thirdweb-dev/typescript-sdk/main/docs/images/metamask-fox.svg" alt="MetaMask" className="w-6 h-6" />
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 212 189" fill="none">
+                  <path d="M196.818 0L115.958 57.1273L130.909 25.5045L196.818 0Z" fill="#E2761B" stroke="#E2761B" strokeWidth="0.0878845" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M15.0733 0L95.4061 57.6L81.0916 25.5045L15.0733 0Z" fill="#E4761B" stroke="#E4761B" strokeWidth="0.0878845" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M168.275 134.704L147.055 165.622L192.36 177.385L205.444 135.352L168.275 134.704Z" fill="#E4761B" stroke="#E4761B" strokeWidth="0.0878845" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M6.64404 135.352L19.6396 177.385L64.9451 165.622L43.7245 134.704L6.64404 135.352Z" fill="#E4761B" stroke="#E4761B" strokeWidth="0.0878845" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M62.3509 81.7455L49.6149 99.7964L94.6678 101.689L93.0619 53.3855L62.3509 81.7455Z" fill="#E4761B" stroke="#E4761B" strokeWidth="0.0878845" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M149.46 81.7455L118.375 52.89L117.244 101.689L162.208 99.7964L149.46 81.7455Z" fill="#E4761B" stroke="#E4761B" strokeWidth="0.0878845" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M64.9455 165.622L91.9145 153.036L68.4673 135.618L64.9455 165.622Z" fill="#E4761B" stroke="#E4761B" strokeWidth="0.0878845" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M119.896 153.036L147.055 165.622L143.355 135.618L119.896 153.036Z" fill="#E4761B" stroke="#E4761B" strokeWidth="0.0878845" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
                 Connect with MetaMask
               </button>
               
               <button
                 type="button"
-                className="btn-secondary w-full flex items-center justify-center gap-md bg-neutral-light/30 border border-neutral-light rounded-lg py-2.5 font-medium hover:bg-neutral-light/50 transition-colors"
+                className="btn-secondary w-full flex items-center justify-center gap-md bg-neutral-dark/50 border border-neutral-light rounded-lg py-2.5 font-medium hover:bg-neutral-dark/70 transition-colors text-white"
                 onClick={() => handleWalletConnect(walletConnectV2)}
                 disabled={isLoading}
               >
-                <img src="https://raw.githubusercontent.com/WalletConnect/walletconnect-assets/master/Icon/Blue%20(Default)/Icon.svg" alt="WalletConnect" className="w-6 h-6" />
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 512 512" fill="none">
+                  <path d="M256 86.4C155.396 86.4 73.6 168.196 73.6 268.8C73.6 369.404 155.396 451.2 256 451.2C356.604 451.2 438.4 369.404 438.4 268.8C438.4 168.196 356.604 86.4 256 86.4ZM143.118 247.177C143.118 241.003 148.124 236 154.294 236H197.835C204.006 236 209.012 241.003 209.012 247.177V276.118C209.012 282.292 204.006 287.294 197.835 287.294H154.294C148.124 287.294 143.118 282.292 143.118 276.118V247.177ZM302.988 247.177C302.988 241.003 307.994 236 314.165 236H357.706C363.876 236 368.882 241.003 368.882 247.177V276.118C368.882 282.292 363.876 287.294 357.706 287.294H314.165C307.994 287.294 302.988 282.292 302.988 276.118V247.177Z" fill="#3B99FC"/>
+                </svg>
                 Connect with WalletConnect
               </button>
               
               <button
                 type="button"
-                className="btn-secondary w-full flex items-center justify-center gap-md bg-neutral-light/30 border border-neutral-light rounded-lg py-2.5 font-medium hover:bg-neutral-light/50 transition-colors"
+                className="btn-secondary w-full flex items-center justify-center gap-md bg-neutral-dark/50 border border-neutral-light rounded-lg py-2.5 font-medium hover:bg-neutral-dark/70 transition-colors text-white"
                 onClick={() => handleWalletConnect(coinbase)}
                 disabled={isLoading}
               >
-                <img src="https://raw.githubusercontent.com/thirdweb-dev/typescript-sdk/main/docs/images/coinbase-wallet-logo.svg" alt="Coinbase Wallet" className="w-6 h-6" />
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 1024 1024" fill="none">
+                  <rect width="1024" height="1024" rx="512" fill="#0052FF"/>
+                  <path d="M512 724C629.8 724 725 628.8 725 511C725 393.2 629.8 298 512 298C394.2 298 299 393.2 299 511C299 628.8 394.2 724 512 724Z" fill="white"/>
+                  <path d="M512.153 335C439.622 335 381.652 393.025 381.652 465.5C381.652 538.05 439.622 596 512.153 596C584.683 596 642.652 538.05 642.652 465.5C642.652 393.025 584.683 335 512.153 335ZM512.153 561.338C458.674 561.338 416.267 518.975 416.267 465.5C416.267 412.1 458.674 369.663 512.153 369.663C565.631 369.663 608.038 412.025 608.038 465.5C608.038 518.975 565.631 561.338 512.153 561.338Z" fill="#0052FF"/>
+                </svg>
                 Connect with Coinbase Wallet
               </button>
               
               <div className="relative flex items-center py-md">
-                <div className="flex-grow border-t border-neutral-light"></div>
-                <span className="flex-shrink mx-md text-neutral-medium text-body-sm">or continue with</span>
-                <div className="flex-grow border-t border-neutral-light"></div>
+                <div className="flex-grow border-t border-neutral-light/30"></div>
+                <span className="flex-shrink mx-md text-white text-body-sm">or continue with</span>
+                <div className="flex-grow border-t border-neutral-light/30"></div>
               </div>
               
               <button
@@ -208,7 +219,7 @@ const ConnectWallet = () => {
               
               <button
                 type="button"
-                className="btn-secondary w-full flex items-center justify-center gap-md bg-neutral-light/30 border border-neutral-light rounded-lg py-2.5 font-medium hover:bg-neutral-light/50 transition-colors"
+                className="btn-secondary w-full flex items-center justify-center gap-md bg-neutral-dark/50 border border-neutral-light rounded-lg py-2.5 font-medium hover:bg-neutral-dark/70 transition-colors text-white"
                 onClick={handleGoogleLogin}
                 disabled={isLoading}
               >
@@ -223,7 +234,7 @@ const ConnectWallet = () => {
               
               <button
                 type="button"
-                className="btn-secondary w-full bg-neutral-light/30 border border-neutral-light rounded-lg py-2.5 font-medium hover:bg-neutral-light/50 transition-colors"
+                className="btn-secondary w-full bg-neutral-dark/50 border border-neutral-light rounded-lg py-2.5 font-medium hover:bg-neutral-dark/70 transition-colors text-white"
                 onClick={() => setShowEmailForm(true)}
                 disabled={isLoading}
               >
@@ -233,7 +244,7 @@ const ConnectWallet = () => {
           )}
         </div>
         
-        <p className="text-center text-body-sm text-neutral-medium mt-lg">
+        <p className="text-center text-body-sm text-white/70 mt-lg">
           By connecting, you agree to the{' '}
           <a href="#" className="text-primary hover:underline">Terms of Service</a>
           {' '}and{' '}

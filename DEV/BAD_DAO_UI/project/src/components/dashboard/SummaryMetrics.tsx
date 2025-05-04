@@ -1,4 +1,5 @@
 import { ArrowUpRight, Users, FileText, Wallet } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 interface SummaryMetricsProps {
   activeProposals: number;
@@ -23,10 +24,10 @@ const SummaryMetrics = ({
           <h3 className="text-label text-neutral-medium">Active Proposals</h3>
         </div>
         <p className="text-h2 font-bold">{activeProposals}</p>
-        <a href="/proposals" className="mt-sm text-primary text-body-sm font-medium flex items-center hover:underline">
+        <Link to="/proposals" className="mt-sm text-primary text-body-sm font-medium flex items-center hover:underline">
           View all proposals
           <ArrowUpRight size={14} className="ml-1" />
-        </a>
+        </Link>
       </div>
       
       <div className="card">
@@ -50,10 +51,10 @@ const SummaryMetrics = ({
           <h3 className="text-label text-neutral-medium">Treasury Balance</h3>
         </div>
         <p className="text-h2 font-bold">{treasuryBalance}</p>
-        <a href="/treasury" className="mt-sm text-primary text-body-sm font-medium flex items-center hover:underline">
+        <Link to="/treasury" className="mt-sm text-primary text-body-sm font-medium flex items-center hover:underline">
           View treasury
           <ArrowUpRight size={14} className="ml-1" />
-        </a>
+        </Link>
       </div>
       
       <div className="card">

@@ -5,6 +5,7 @@ import { useThirdwebWallet } from '../hooks/useThirdwebWallet';
 import { truncateAddress } from '../utils/address';
 import { getMockProposals } from '../utils/mockData';
 import { ProposalType } from '../types/proposal';
+import { Link } from 'react-router-dom';
 
 const Profile = () => {
   const { user } = useAuth();
@@ -150,9 +151,9 @@ const Profile = () => {
                 <p className="text-body text-neutral-medium mb-lg">
                   You haven't voted on any proposals yet.
                 </p>
-                <a href="/proposals" className="btn-primary">
+                <Link to="/proposals" className="btn-primary">
                   Browse Active Proposals
-                </a>
+                </Link>
               </div>
             )}
           </div>
@@ -192,12 +193,12 @@ const Profile = () => {
                         Created {proposal.createdAt.toLocaleDateString()}
                       </span>
                       
-                      <a 
-                        href={`/proposals/${proposal.id}`}
+                      <Link 
+                        to={`/proposals/${proposal.id}`}
                         className="text-primary text-body-sm font-medium hover:underline"
                       >
                         View Proposal
-                      </a>
+                      </Link>
                     </div>
                   </div>
                 ))}
@@ -208,9 +209,9 @@ const Profile = () => {
                 <p className="text-body text-neutral-medium mb-lg">
                   You haven't created any proposals yet.
                 </p>
-                <a href="/proposals/create" className="btn-primary">
+                <Link to="/proposals/create" className="btn-primary">
                   Create a Proposal
-                </a>
+                </Link>
               </div>
             )}
           </div>

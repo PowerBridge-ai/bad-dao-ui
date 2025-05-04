@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Search, Star, Filter, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import dbService, { Space as DBSpace } from '../services/database';
+import seedDatabase from '../utils/seedDatabase';
 
 // Define space type
 type Space = {
@@ -202,8 +203,30 @@ const Spaces = () => {
           // Combine with mock data for now (in a real app, we'd only use DB data)
           setSpaces([...formattedSpaces, ...mockSpaces]);
         } else {
-          // Fall back to mock data if no spaces in DB
-          setSpaces(mockSpaces);
+          // No spaces found, seed the database
+          console.log('No spaces found, seeding database...');
+          await seedDatabase();
+          
+          // Try fetching again after seeding
+          const seededSpaces = await dbService.getAllSpaces();
+          
+          if (seededSpaces && seededSpaces.length > 0) {
+            const formattedSpaces = seededSpaces.map((dbSpace: DBSpace) => ({
+              id: dbSpace.id?.toString() || '',
+              name: dbSpace.name,
+              logo: dbSpace.logo || `/mock/${dbSpace.name.toLowerCase().replace(/\s+/g, '-')}-logo.png`,
+              isVerified: false,
+              description: dbSpace.description,
+              proposalCount: dbSpace.proposalCount || 0,
+              voteCount: dbSpace.voteCount || 0,
+              tags: dbSpace.categories,
+            }));
+            
+            setSpaces(formattedSpaces);
+          } else {
+            // Fall back to mock data if seeding fails
+            setSpaces(mockSpaces);
+          }
         }
       } catch (error) {
         console.error('Error fetching spaces:', error);
@@ -386,62 +409,58 @@ const Spaces = () => {
           {filteredSpaces.map((space) => (
             <div 
               key={space.id} 
-              className="group bg-neutral-dark hover:bg-neutral-dark/70 rounded-xl overflow-hidden transition-all cursor-pointer"
+              className="card hover:shadow-md transition-shadow border-t-4 border-primary cursor-pointer"
+              onClick={() => navigate(`/spaces/${space.id}`)}
             >
-              {/* Space card header/banner image - using gradient as placeholder */}
-              <div className="h-24 bg-gradient-to-r from-primary/20 to-primary-dark/20 relative">
-                {/* Space logo */}
-                <div className="absolute -bottom-6 left-4 w-12 h-12 rounded-lg bg-neutral-dark border border-neutral-dark flex items-center justify-center overflow-hidden">
+              <div className="flex items-center gap-md">
+                <div className="flex-shrink-0 w-16 h-16 rounded-full overflow-hidden bg-neutral-dark/30 flex items-center justify-center">
                   {space.logo ? (
-                    <img 
-                      src={space.logo.startsWith('/') ? `/bad-dao${space.logo}` : space.logo} 
-                      alt={`${space.name} logo`}
-                      className="w-full h-full object-cover"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = 'https://placehold.co/48x48/1E1E1E/1AB759?text=DAO';
-                      }}
-                    />
+                    <img src={space.logo} alt={`${space.name} logo`} className="w-full h-full object-cover" />
                   ) : (
-                    <div className="w-full h-full bg-primary/20 flex items-center justify-center text-primary font-bold">
-                      {space.name.charAt(0)}
-                    </div>
+                    <span className="text-h2 font-bold text-primary">{space.name.charAt(0)}</span>
                   )}
                 </div>
                 
-                {/* Follow button */}
-                <button 
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-sm">
+                    <h3 className="text-h3 truncate">{space.name}</h3>
+                    {space.isVerified && (
+                      <span className="badge badge-success text-caption">Verified</span>
+                    )}
+                  </div>
+                  <p className="text-body-sm text-neutral-medium line-clamp-2">{space.description}</p>
+                </div>
+                
+                <button
+                  className={`btn-icon-secondary flex-shrink-0 ${space.isFollowing ? 'text-primary' : 'text-neutral-light'}`}
                   onClick={(e) => {
-                    e.stopPropagation();
+                    e.stopPropagation();  // Prevent card click when follow button is clicked
                     handleFollow(space.id);
                   }}
-                  className={`absolute top-3 right-3 p-1 rounded-full transition-colors ${space.isFollowing ? 'bg-primary text-white' : 'bg-neutral-dark/50 text-white hover:bg-neutral-light/20'}`}
+                  aria-label={space.isFollowing ? 'Unfollow' : 'Follow'}
                 >
-                  <Star size={18} fill={space.isFollowing ? 'currentColor' : 'none'} />
+                  <Star size={20} fill={space.isFollowing ? 'currentColor' : 'none'} />
                 </button>
               </div>
-
-              {/* Space content */}
-              <div className="p-4 pt-8">
-                {/* Space name and verification */}
-                <div className="flex items-center mb-2">
-                  <h3 className="text-h3 text-white mr-1">{space.name}</h3>
-                  {space.isVerified && (
-                    <span className="text-primary">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M9 12L11 14L15 10M12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3C7.02944 3 3 7.02944 3 12C3 16.9706 7.02944 21 12 21Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </span>
-                  )}
+              
+              <div className="flex items-center justify-between mt-md pt-md border-t border-neutral-light/20">
+                <div className="flex items-center gap-lg">
+                  <div className="text-center">
+                    <p className="text-body font-medium">{formatNumber(space.proposalCount)}</p>
+                    <p className="text-caption text-neutral-medium">Proposals</p>
+                  </div>
+                  
+                  <div className="text-center">
+                    <p className="text-body font-medium">{formatNumber(space.voteCount)}</p>
+                    <p className="text-caption text-neutral-medium">Votes</p>
+                  </div>
                 </div>
-
-                {/* Space description */}
-                <p className="text-body text-neutral-light/80 mb-4 line-clamp-2">{space.description}</p>
-
-                {/* Space stats */}
-                <div className="flex items-center text-sm text-neutral-light/60">
-                  <span className="mr-4">{space.proposalCount} proposals</span>
-                  <span>{formatNumber(space.voteCount)} votes</span>
-                </div>
+                
+                <div className="flex gap-sm">{space.tags?.map(tag => (
+                  <span key={tag} className="text-caption bg-neutral-light/30 text-neutral-light px-2 py-1 rounded-lg">
+                    {tag}
+                  </span>
+                ))}</div>
               </div>
             </div>
           ))}

@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Bot, User } from 'lucide-react';
+import MarkdownRenderer from './MarkdownRenderer';
 
 interface Message {
   id: string;
@@ -113,7 +114,13 @@ const ChatInterface = ({ contractAddress, onSendMessage }: ChatInterfaceProps) =
                   {message.sender === 'ai' ? 'AI Assistant' : 'You'}
                 </span>
               </div>
+              {message.sender === 'ai' ? (
+                <div className="markdown-wrapper text-body">
+                  <MarkdownRenderer content={message.text} />
+                </div>
+              ) : (
               <p className="text-body whitespace-pre-wrap">{message.text}</p>
+              )}
             </div>
           </div>
         ))}

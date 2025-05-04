@@ -1,0 +1,169 @@
+/* Markdown content styling */
+.markdown-content {
+  line-height: 1.6;
+}
+
+.markdown-content h1,
+.markdown-content h2,
+.markdown-content h3,
+.markdown-content h4,
+.markdown-content h5,
+.markdown-content h6 {
+  margin-top: 1.5rem;
+  margin-bottom: 1rem;
+  font-weight: 600;
+}
+
+.markdown-content h1 {
+  font-size: 1.8rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 0.5rem;
+}
+
+.markdown-content h2 {
+  font-size: 1.5rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 0.3rem;
+}
+
+.markdown-content h3 {
+  font-size: 1.3rem;
+}
+
+.markdown-content h4 {
+  font-size: 1.1rem;
+}
+
+.markdown-content p {
+  margin: 0.75rem 0;
+}
+
+.markdown-content a {
+  color: #7C3AED;
+  text-decoration: none;
+}
+
+.markdown-content a:hover {
+  text-decoration: underline;
+}
+
+.markdown-content ul,
+.markdown-content ol {
+  margin: 0.75rem 0;
+  padding-left: 1.5rem;
+}
+
+.markdown-content img {
+  max-width: 100%;
+  border-radius: 0.375rem;
+}
+
+/* Syntax highlighting styles */
+.hljs {
+  color: #abb2bf;
+  background: #1e1e1e;
+}
+
+.hljs-keyword,
+.hljs-operator {
+  color: #c678dd;
+}
+
+.hljs-function,
+.hljs-title.function_ {
+  color: #61afef;
+}
+
+.hljs-selector-tag {
+  color: #e06c75;
+}
+
+.hljs-string {
+  color: #98c379;
+}
+
+.hljs-title,
+.hljs-type {
+  color: #e5c07b;
+}
+
+.hljs-attribute,
+.hljs-symbol {
+  color: #d19a66;
+}
+
+.hljs-literal,
+.hljs-number,
+.hljs-built_in {
+  color: #d19a66;
+}
+
+.hljs-regexp,
+.hljs-meta {
+  color: #e06c75;
+}
+
+.hljs-comment {
+  color: #7f848e;
+  font-style: italic;
+}
+
+/* Mermaid diagram styles */
+.mermaid-diagram {
+  text-align: center;
+}
+
+.mermaid-diagram svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* Code block container */
+.code-block-container {
+  margin: 1rem 0;
+}
+
+.code-block-container pre {
+  margin: 0;
+  padding: 1rem;
+  overflow-x: auto;
+}
+
+/* Tables */
+.markdown-content table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 1rem 0;
+}
+
+.markdown-content th,
+.markdown-content td {
+  padding: 0.5rem;
+  text-align: left;
+}
+
+.markdown-content th {
+  background-color: rgba(0, 0, 0, 0.2);
+  font-weight: 600;
+}
+
+.markdown-content tr {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* Blockquotes */
+.markdown-content blockquote {
+  margin: 1rem 0;
+  padding: 0.5rem 1rem;
+  border-left: 4px solid #7C3AED;
+  background-color: rgba(0, 0, 0, 0.2);
+  font-style: italic;
+}
+
+/* Horizontal rule */
+.markdown-content hr {
+  border: 0;
+  height: 1px;
+  background-color: rgba(255, 255, 255, 0.1);
+  margin: 1.5rem 0;
+} 
