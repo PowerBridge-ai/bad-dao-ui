@@ -1,5 +1,6 @@
-import { useState } from 'react';
-import { Save, RefreshCw, AlertCircle, Info } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Save, RefreshCw, AlertCircle, Info, Volume2 } from 'lucide-react';
+import elevenlabsService from '../services/elevenlabsService';
 
 type ApiKeyType = {
   id: string;
@@ -9,7 +10,7 @@ type ApiKeyType = {
   info?: string;
 };
 
-type TabType = 'google-signin' | 'google-drive' | 'github' | 'web3' | 'general';
+type TabType = 'google-signin' | 'google-drive' | 'github' | 'web3' | 'general' | 'elevenlabs';
 
 const Admin = () => {
   const [activeTab, setActiveTab] = useState<TabType>('google-signin');
@@ -43,14 +44,76 @@ const Admin = () => {
     { id: 'ipfs_gateway', label: 'IPFS Gateway URL', value: 'https://ipfs.thirdwebcdn.com/ipfs/', isSecret: false },
   ]);
 
+  // Add ElevenLabs configuration with the provided API key
+  const [elevenLabsConfig, setElevenLabsConfig] = useState<ApiKeyType[]>([
+    { 
+      id: 'elevenlabs_api_key', 
+      label: 'ElevenLabs API Key', 
+      value: 'sk_cc4457312c45705d76e0bdca29315986a0619292d5186f72', 
+      isSecret: true,
+      info: 'API key for ElevenLabs voice synthesis' 
+    },
+    {
+      id: 'elevenlabs_voice_id',
+      label: 'Default Voice ID',
+      value: '',
+      isSecret: false,
+      info: 'The default voice ID to use for text-to-speech (leave blank for auto-selection)'
+    }
+  ]);
+
   const [isSaving, setIsSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const [statusMessage, setStatusMessage] = useState('');
 
+  useEffect(() => {
+    // Load saved configurations from localStorage
+    try {
+      const savedElevenLabsConfig = localStorage.getItem('elevenlabs_config');
+      const savedThirdwebConfig = localStorage.getItem('thirdweb_config');
+      const savedGoogleSignInConfig = localStorage.getItem('google_signin_config');
+      const savedGoogleDriveConfig = localStorage.getItem('google_drive_config');
+      const savedGithubConfig = localStorage.getItem('github_config');
+      const savedGeneralConfig = localStorage.getItem('general_config');
+      
+      if (savedElevenLabsConfig) {
+        setElevenLabsConfig(JSON.parse(savedElevenLabsConfig));
+      }
+      
+      if (savedThirdwebConfig) {
+        setThirdwebConfig(JSON.parse(savedThirdwebConfig));
+      }
+      
+      if (savedGoogleSignInConfig) {
+        setGoogleSignInConfig(JSON.parse(savedGoogleSignInConfig));
+      }
+      
+      if (savedGoogleDriveConfig) {
+        setGoogleDriveConfig(JSON.parse(savedGoogleDriveConfig));
+      }
+      
+      if (savedGithubConfig) {
+        setGithubConfig(JSON.parse(savedGithubConfig));
+      }
+      
+      if (savedGeneralConfig) {
+        setOtherConfig(JSON.parse(savedGeneralConfig));
+      }
+    } catch (error) {
+      console.error('Error loading saved configurations:', error);
+    }
+
+    // Initialize ElevenLabs with the API key on component load
+    const elevenLabsKey = elevenLabsConfig.find(key => key.id === 'elevenlabs_api_key')?.value;
+    if (elevenLabsKey) {
+      elevenlabsService.initElevenLabsService(elevenLabsKey);
+    }
+  }, []);
+
   const updateApiKeyValue = (
     keyId: string, 
     value: string, 
-    group: 'thirdweb' | 'google-signin' | 'google-drive' | 'github' | 'general'
+    group: 'thirdweb' | 'google-signin' | 'google-drive' | 'github' | 'general' | 'elevenlabs'
   ) => {
     switch (group) {
       case 'thirdweb':
@@ -78,6 +141,11 @@ const Admin = () => {
           key.id === keyId ? { ...key, value } : key
         ));
         break;
+      case 'elevenlabs':
+        setElevenLabsConfig(elevenLabsConfig.map(key =>
+          key.id === keyId ? { ...key, value } : key
+        ));
+        break;
     }
   };
 
@@ -89,6 +157,25 @@ const Admin = () => {
       // In a real implementation, this would call an API endpoint
       // to save the configuration securely
       await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Initialize ElevenLabs with the saved API key
+      const elevenLabsKey = elevenLabsConfig.find(key => key.id === 'elevenlabs_api_key')?.value;
+      if (elevenLabsKey) {
+        elevenlabsService.initElevenLabsService(elevenLabsKey);
+      }
+      
+      // Store the API keys in localStorage for persistence
+      try {
+        // Save all configurations to localStorage for this demo
+        localStorage.setItem('elevenlabs_config', JSON.stringify(elevenLabsConfig));
+        localStorage.setItem('thirdweb_config', JSON.stringify(thirdwebConfig));
+        localStorage.setItem('google_signin_config', JSON.stringify(googleSignInConfig));
+        localStorage.setItem('google_drive_config', JSON.stringify(googleDriveConfig));
+        localStorage.setItem('github_config', JSON.stringify(githubConfig));
+        localStorage.setItem('general_config', JSON.stringify(otherConfig));
+      } catch (storageError) {
+        console.error('Error storing configurations:', storageError);
+      }
       
       // Mock successful save
       setSaveStatus('success');
@@ -107,7 +194,7 @@ const Admin = () => {
     }
   };
 
-  const renderApiKey = (key: ApiKeyType, group: 'thirdweb' | 'google-signin' | 'google-drive' | 'github' | 'general') => (
+  const renderApiKey = (key: ApiKeyType, group: 'thirdweb' | 'google-signin' | 'google-drive' | 'github' | 'general' | 'elevenlabs') => (
     <div key={key.id} className="mb-lg">
       <div className="flex items-start justify-between mb-sm">
         <label htmlFor={key.id} className="text-white text-sm font-medium mb-1 flex items-center">
@@ -209,6 +296,17 @@ const Admin = () => {
             GitHub
           </button>
           <button
+            onClick={() => setActiveTab('elevenlabs')}
+            className={`flex items-center px-md py-md font-medium ${
+              activeTab === 'elevenlabs' 
+                ? 'text-primary border-b-2 border-primary' 
+                : 'text-white hover:text-primary/80'
+            }`}
+          >
+            <Volume2 className={`w-6 h-6 mr-sm ${activeTab === 'elevenlabs' ? 'text-primary' : 'text-neutral-light'}`} />
+            ElevenLabs Voice
+          </button>
+          <button
             onClick={() => setActiveTab('web3')}
             className={`flex items-center px-md py-md font-medium ${
               activeTab === 'web3' 
@@ -274,6 +372,44 @@ const Admin = () => {
               </p>
               <div className="space-y-md">
                 {githubConfig.map(key => renderApiKey(key, 'github'))}
+              </div>
+            </div>
+          )}
+          
+          {activeTab === 'elevenlabs' && (
+            <div>
+              <h2 className="text-h2 text-white mb-md">ElevenLabs Voice Configuration</h2>
+              <p className="text-neutral-light/70 mb-lg">
+                Configure ElevenLabs API for high-quality AI voice synthesis.
+              </p>
+              <div className="space-y-md">
+                {elevenLabsConfig.map(key => renderApiKey(key, 'elevenlabs'))}
+              </div>
+              
+              <div className="mt-6 p-4 bg-primary/10 rounded-lg border border-primary/20">
+                <div className="flex items-start">
+                  <Info size={20} className="text-primary mr-3 mt-0.5" />
+                  <div>
+                    <h3 className="text-white font-medium mb-1">Voice Configuration</h3>
+                    <p className="text-neutral-light/70 text-sm">
+                      The ElevenLabs API allows you to convert text to lifelike speech. Once configured, 
+                      voice synthesis will be available in the AI assistant and the contract builder.
+                    </p>
+                    <div className="mt-3">
+                      <a 
+                        href="https://elevenlabs.io/app" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-primary hover:underline text-sm inline-flex items-center"
+                      >
+                        Manage your ElevenLabs account
+                        <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"></path>
+                        </svg>
+                      </a>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           )}

@@ -15,6 +15,7 @@ import NotFound from './pages/NotFound';
 import Admin from './pages/Admin';
 import Spaces from './pages/Spaces';
 import SpaceDetail from './pages/SpaceDetail';
+import SpaceDashboard from './pages/SpaceDashboard';
 import CreateSpace from './pages/CreateSpace';
 import ProjectManagementPage from './pages/ProjectManagementPage';
 import ContributorProfilePage from './pages/ContributorProfilePage';
@@ -22,6 +23,10 @@ import AcademyPage from './pages/AcademyPage';
 import BountyPage from './pages/BountyPage';
 import BountyDetailPage from './pages/BountyDetailPage';
 import CreateBountyPage from './pages/CreateBountyPage';
+import SpacesExplorer from './pages/SpacesExplorer';
+import MySpaces from './pages/MySpaces';
+import Governance from './pages/Governance';
+import ContractEdit from './pages/ContractEdit';
 
 // Auth Components
 import AuthGuard from './components/auth/AuthGuard';
@@ -67,20 +72,31 @@ function App() {
             <Route path="/ai-assistant" element={<AiAssistant />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/admin" element={<Admin />} />
-            <Route path="/spaces" element={<Spaces />} />
+            <Route path="/spaces" element={<SpacesExplorer />} />
+            <Route path="/spaces/my" element={<MySpaces />} />
             <Route path="/spaces/:id" element={<SpaceDetail />} />
+            <Route path="/spaces/:id/dashboard" element={<SpaceDashboard />} />
             <Route path="/create-space" element={<CreateSpace />} />
             
             {/* Project Management Routes */}
             <Route path="/project-management" element={<ProjectManagementPage />} />
-            <Route path="/project-management/daos" element={<ProjectManagementPage />} />
-            <Route path="/project-management/bounties" element={<BountyPage />} />
-            <Route path="/project-management/bounties/create" element={<CreateBountyPage />} />
-            <Route path="/project-management/bounties/:id" element={<BountyDetailPage />} />
-            <Route path="/project-management/contributors" element={<ProjectManagementPage />} />
-            <Route path="/project-management/contributors/:id" element={<ContributorProfilePage />} />
             <Route path="/project-management/tasks" element={<ProjectManagementPage />} />
             <Route path="/project-management/tasks/:id" element={<ProjectManagementPage />} />
+            <Route path="/project-management/contributors" element={<ProjectManagementPage />} />
+            <Route path="/project-management/contributors/:id" element={<ContributorProfilePage />} />
+            
+            {/* DAO Routes */}
+            <Route path="/spaces/daos" element={<Spaces />} />
+            
+            {/* Governance Routes */}
+            <Route path="/governance" element={<Governance />} />
+            <Route path="/dao/:daoId/governance" element={<Governance />} />
+            <Route path="/dao/:daoId/governance/contract/:contractId" element={<ContractEdit />} />
+            
+            {/* Bounty Routes */}
+            <Route path="/bounties" element={<BountyPage />} />
+            <Route path="/bounties/create" element={<CreateBountyPage />} />
+            <Route path="/bounties/:id" element={<BountyDetailPage />} />
             
             {/* Academy Routes */}
             <Route path="/academy" element={<AcademyPage />} />

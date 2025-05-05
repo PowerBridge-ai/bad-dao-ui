@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, Users, Shield, Settings, FileText, Wallet, Star, Lock, Eye, EyeOff, Crown } from 'lucide-react';
+import { ArrowLeft, Users, Shield, Settings, FileText, Wallet, Star, Lock, Eye, EyeOff, Crown, LayoutGrid } from 'lucide-react';
 import dbService, { Space } from '../services/database';
 import { truncateAddress } from '../utils/address';
 
@@ -371,6 +371,11 @@ const SpaceDetail = () => {
               <Star size={18} className="mr-sm" fill={isFollowing ? 'currentColor' : 'none'} />
               {isFollowing ? 'Following' : 'Follow'}
             </button>
+            
+            <Link to={`/spaces/${id}/dashboard`} className="btn-secondary flex items-center">
+              <LayoutGrid size={18} className="mr-sm" />
+              Dashboard
+            </Link>
             
             <button className="btn-primary">
               <Shield size={18} className="mr-sm" />

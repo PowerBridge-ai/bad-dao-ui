@@ -1,271 +1,11 @@
-import { useState, useRef, useEffect, Suspense } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { 
-  OrbitControls, 
-  useGLTF, 
-  Float, 
-  Text3D, 
-  MeshDistortMaterial, 
-  Environment, 
-  ContactShadows,
-  Html
-} from '@react-three/drei';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import * as THREE from 'three';
 import { useNavigate } from 'react-router-dom';
 import dbService, { Space } from '../services/database';
+import { ArrowLeft, ArrowRight, Check, Info } from 'lucide-react';
 
 // Define step types
 type OnboardingStep = 'welcome' | 'name' | 'description' | 'category' | 'visibility' | 'summary';
-
-// Simple AI assistant animation
-const AIAssistant = ({ position = [0, 0, 0], text }: { position?: [number, number, number], text: string }) => {
-  const mesh = useRef<THREE.Mesh>(null);
-  
-  useFrame((state) => {
-    if (mesh.current) {
-      mesh.current.rotation.y = Math.sin(state.clock.getElapsedTime() * 0.5) * 0.2;
-      mesh.current.position.y = Math.sin(state.clock.getElapsedTime() * 1.5) * 0.1 + position[1];
-    }
-  });
-  
-  return (
-    <group position={position}>
-      {/* AI Assistant "head" */}
-      <mesh ref={mesh}>
-        <sphereGeometry args={[0.7, 32, 32]} />
-        <MeshDistortMaterial 
-          color="#1AB759" 
-          speed={2} 
-          distort={0.3} 
-          radius={1} 
-        />
-      </mesh>
-      
-      {/* Speech bubble */}
-      <Html position={[1.2, 0.4, 0]} transform>
-        <div className="bg-neutral-dark p-4 rounded-xl w-64 border border-primary shadow-lg">
-          <p className="text-white text-sm">{text}</p>
-        </div>
-      </Html>
-    </group>
-  );
-};
-
-// Floating 3D text with distortion effect
-const FloatingTitle = ({ text, position = [0, 3, 0], color = "#1AB759" }: { text: string, position?: [number, number, number], color?: string }) => {
-  const mesh = useRef<THREE.Mesh>(null);
-  
-  useFrame((state) => {
-    if (mesh.current) {
-      mesh.current.rotation.y = Math.sin(state.clock.getElapsedTime() * 0.3) * 0.1;
-      mesh.current.position.y = Math.sin(state.clock.getElapsedTime()) * 0.1 + position[1];
-    }
-  });
-  
-  return (
-    <Float speed={2} rotationIntensity={0.2} floatIntensity={0.5}>
-      <Text3D
-        ref={mesh}
-        font="/fonts/Inter_Bold.json"
-        position={new THREE.Vector3(...position)}
-        scale={0.5}
-        letterSpacing={0.05}
-      >
-        {text}
-        <MeshDistortMaterial 
-          color={color} 
-          speed={1.5} 
-          distort={0.2} 
-          envMapIntensity={1} 
-        />
-      </Text3D>
-    </Float>
-  );
-};
-
-// Interactive hovering space model
-const SpaceModel = ({ position = [0, 0, 0], rotation = [0, 0, 0] }) => {
-  const mesh = useRef<THREE.Group>(null);
-  const [hovered, setHovered] = useState(false);
-  
-  useFrame((state) => {
-    if (mesh.current) {
-      mesh.current.rotation.y += 0.005;
-      mesh.current.rotation.x = Math.sin(state.clock.getElapsedTime() * 0.5) * 0.05;
-    }
-  });
-  
-  return (
-    <group 
-      ref={mesh}
-      position={new THREE.Vector3(...position)}
-      rotation={new THREE.Euler(...rotation)}
-      onPointerOver={() => setHovered(true)}
-      onPointerOut={() => setHovered(false)}
-      scale={hovered ? 1.1 : 1}
-    >
-      {/* Core center sphere */}
-      <mesh>
-        <sphereGeometry args={[0.7, 32, 32]} />
-        <meshStandardMaterial 
-          color="#1AB759" 
-          emissive="#1AB759"
-          emissiveIntensity={0.5}
-          metalness={0.8}
-          roughness={0.2}
-        />
-      </mesh>
-      
-      {/* Orbiting spheres */}
-      {[1, 2, 3].map((i) => (
-        <mesh key={i} position={[
-          Math.sin(i * (Math.PI * 2 / 3)) * 1.2,
-          Math.cos(i * (Math.PI * 2 / 3)) * 0.2,
-          Math.cos(i * (Math.PI * 2 / 3)) * 1.2
-        ]}>
-          <sphereGeometry args={[0.15, 16, 16]} />
-          <meshStandardMaterial 
-            color="#ffffff" 
-            emissive="#ffffff"
-            emissiveIntensity={0.5}
-          />
-        </mesh>
-      ))}
-      
-      {/* Rings */}
-      <mesh rotation={[Math.PI / 2, 0, 0]}>
-        <torusGeometry args={[1.2, 0.02, 16, 100]} />
-        <meshStandardMaterial 
-          color="#1AB759"
-          transparent={true}
-          opacity={0.7}
-        />
-      </mesh>
-      <mesh rotation={[Math.PI / 4, Math.PI / 4, 0]}>
-        <torusGeometry args={[1.4, 0.02, 16, 100]} />
-        <meshStandardMaterial 
-          color="#ffffff"
-          transparent={true}
-          opacity={0.3}
-        />
-      </mesh>
-    </group>
-  );
-};
-
-// Animated geometric shapes in background
-const AnimatedBackgroundShapes = () => {
-  const shapes = useRef<THREE.Group>(null);
-  
-  useFrame((state) => {
-    if (shapes.current) {
-      shapes.current.rotation.y = state.clock.getElapsedTime() * 0.02;
-      shapes.current.rotation.x = state.clock.getElapsedTime() * 0.01;
-    }
-  });
-  
-  return (
-    <group ref={shapes}>
-      {Array.from({ length: 20 }).map((_, i) => {
-        const position: [number, number, number] = [
-          (Math.random() - 0.5) * 15,
-          (Math.random() - 0.5) * 15,
-          (Math.random() - 0.5) * 15
-        ];
-        const rotation: [number, number, number] = [
-          Math.random() * Math.PI,
-          Math.random() * Math.PI,
-          Math.random() * Math.PI
-        ];
-        const size = Math.random() * 0.3 + 0.1;
-        
-        // Randomly choose shape type
-        const shapeType = Math.floor(Math.random() * 3);
-        
-        return (
-          <mesh key={i} position={position} rotation={rotation}>
-            {shapeType === 0 && <boxGeometry args={[size, size, size]} />}
-            {shapeType === 1 && <octahedronGeometry args={[size, 0]} />}
-            {shapeType === 2 && <dodecahedronGeometry args={[size, 0]} />}
-            <meshStandardMaterial 
-              color="#1AB759" 
-              transparent
-              opacity={0.2}
-              envMapIntensity={1}
-            />
-          </mesh>
-        );
-      })}
-    </group>
-  );
-};
-
-// Main 3D scene
-const Scene = ({ step, assistantMessage }: { step: OnboardingStep, assistantMessage: string }) => {
-  const { camera } = useThree();
-  
-  // Position camera based on step
-  useEffect(() => {
-    switch(step) {
-      case 'welcome':
-        camera.position.set(0, 0, 5);
-        break;
-      case 'name':
-        camera.position.set(-3, 0, 5);
-        break;
-      case 'description':
-        camera.position.set(3, 0, 5);
-        break;
-      default:
-        camera.position.set(0, 0, 5);
-    }
-  }, [step, camera]);
-  
-  return (
-    <>
-      <ambientLight intensity={0.2} />
-      <spotLight position={[10, 10, 10]} angle={0.15} penumbra={1} intensity={1} />
-      <pointLight position={[-10, -10, -10]} intensity={0.5} />
-      
-      <FloatingTitle 
-        text={step === 'welcome' ? "Create Your Space" : 
-             step === 'name' ? "Name Your Space" :
-             step === 'description' ? "Describe Your Vision" :
-             step === 'category' ? "Choose Categories" :
-             step === 'visibility' ? "Set Visibility" : "Ready to Launch"}
-        position={[-2, 2, 0]}
-      />
-      
-      <SpaceModel position={[0, 0, 0]} />
-      
-      <AIAssistant 
-        position={[-2.5, -1.5, 0]} 
-        text={assistantMessage}
-      />
-      
-      <AnimatedBackgroundShapes />
-      
-      <Environment preset="city" />
-      <ContactShadows 
-        position={[0, -2, 0]} 
-        opacity={0.4} 
-        scale={10} 
-        blur={1.5} 
-      />
-      
-      <OrbitControls 
-        enableZoom={false}
-        enablePan={false}
-        minPolarAngle={Math.PI / 3}
-        maxPolarAngle={Math.PI / 1.5}
-        rotateSpeed={0.1}
-        dampingFactor={0.7}
-        enableDamping={true}
-      />
-    </>
-  );
-};
 
 // Main component
 const CreateSpace = () => {
@@ -318,15 +58,31 @@ const CreateSpace = () => {
   const nextStep = () => {
     switch(currentStep) {
       case 'welcome':
+        if (!userName.trim()) {
+          setError("Please enter your name to continue");
+          return;
+        }
         setCurrentStep('name');
         break;
       case 'name':
+        if (!spaceName.trim()) {
+          setError("Please enter a name for your space");
+          return;
+        }
         setCurrentStep('description');
         break;
       case 'description':
+        if (!spaceDescription.trim()) {
+          setError("Please enter a description for your space");
+          return;
+        }
         setCurrentStep('category');
         break;
       case 'category':
+        if (selectedCategories.length === 0) {
+          setError("Please select at least one category");
+          return;
+        }
         setCurrentStep('visibility');
         break;
       case 'visibility':
@@ -337,6 +93,9 @@ const CreateSpace = () => {
         createNewSpace();
         break;
     }
+    
+    // Clear any error when successfully moving to next step
+    setError(null);
   };
   
   const prevStep = () => {
@@ -357,6 +116,9 @@ const CreateSpace = () => {
         setCurrentStep('visibility');
         break;
     }
+    
+    // Clear any error when navigating back
+    setError(null);
   };
   
   // Category options
@@ -399,7 +161,7 @@ const CreateSpace = () => {
       
       if (result) {
         // Success - navigate to spaces list
-        navigate('/spaces');
+        navigate('/spaces/my');
       } else {
         // Something went wrong
         setError('Failed to create space. Please try again.');
@@ -411,32 +173,50 @@ const CreateSpace = () => {
       setIsLoading(false);
     }
   };
+
+  // Get the button text for the current step
+  const getNextButtonText = () => {
+    if (currentStep === 'summary') return "Create Space";
+    return "Next";
+  };
   
   return (
-    <div className="w-full h-screen flex flex-col relative overflow-hidden">
-      {/* 3D Background */}
-      <div className="absolute inset-0 z-0">
-        <Canvas>
-          <Suspense fallback={null}>
-            <Scene 
-              step={currentStep}
-              assistantMessage={getAssistantMessage()}
-            />
-          </Suspense>
-        </Canvas>
-      </div>
-      
-      {/* Overlay Content */}
-      <div className="relative z-10 flex-1 flex items-center justify-center">
+    <div className="w-full min-h-screen py-16 flex flex-col relative">
+      <div className="flex-1 flex items-center justify-center px-4">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentStep}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.7, ease: "easeInOut" }}
-            className="bg-neutral-dark/80 backdrop-blur-xl rounded-xl p-8 w-full max-w-2xl shadow-xl border border-primary/30"
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            className="bg-neutral-dark rounded-xl p-8 w-full max-w-2xl shadow-xl border border-neutral-dark/80"
           >
+            {/* Step indicator */}
+            <div className="flex justify-between mb-8">
+              {['welcome', 'name', 'description', 'category', 'visibility', 'summary'].map((step, index) => (
+                <div 
+                  key={step} 
+                  className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium ${
+                    currentStep === step ? 'bg-primary text-white' : 
+                    index <= ['welcome', 'name', 'description', 'category', 'visibility', 'summary'].indexOf(currentStep) 
+                      ? 'bg-primary/30 text-primary' 
+                      : 'bg-neutral-dark/50 text-neutral-light border border-neutral-light/30'
+                  }`}
+                >
+                  {index + 1}
+                </div>
+              ))}
+            </div>
+
+            {/* Error message */}
+            {error && (
+              <div className="mb-6 p-3 bg-red-500/20 border border-red-500 rounded-lg text-red-400 flex items-center">
+                <Info size={18} className="mr-2 flex-shrink-0" />
+                <span>{error}</span>
+              </div>
+            )}
+
             {/* Step content */}
             {currentStep === 'welcome' && (
               <div className="space-y-6">
@@ -562,6 +342,77 @@ const CreateSpace = () => {
                 </div>
               </div>
             )}
+
+            {currentStep === 'summary' && (
+              <div className="space-y-6">
+                <h2 className="text-h2 text-white text-center">Ready to Launch</h2>
+                <p className="text-neutral-light text-center">Review your space details before creation</p>
+                <div className="bg-neutral-darker rounded-lg p-4 space-y-4">
+                  <div>
+                    <h3 className="text-white font-medium">Space Name</h3>
+                    <p className="text-neutral-light">{spaceName}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-white font-medium">Description</h3>
+                    <p className="text-neutral-light">{spaceDescription}</p>
+                  </div>
+                  <div>
+                    <h3 className="text-white font-medium">Categories</h3>
+                    <div className="flex flex-wrap gap-2 mt-1">
+                      {selectedCategories.map(catId => (
+                        <span key={catId} className="bg-primary/20 text-primary px-2 py-1 rounded-full text-sm">
+                          {categories.find(c => c.id === catId)?.name}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <h3 className="text-white font-medium">Visibility</h3>
+                    <p className="text-neutral-light">{isPublic ? 'Public' : 'Private'}</p>
+                  </div>
+                </div>
+                <div className="tooltip bg-primary/10 text-primary p-3 rounded-lg">
+                  <p className="text-sm">Tip: You can customize your space further after creation</p>
+                </div>
+              </div>
+            )}
+            
+            {/* Navigation buttons */}
+            <div className="flex justify-between mt-8">
+              {currentStep !== 'welcome' && (
+                <button
+                  className="px-6 py-3 rounded-lg bg-neutral-dark/50 text-white border border-neutral-light/30 hover:bg-neutral-dark/70 transition-colors flex items-center"
+                  onClick={prevStep}
+                  disabled={isLoading}
+                >
+                  <ArrowLeft size={18} className="mr-2" />
+                  Back
+                </button>
+              )}
+              {currentStep === 'welcome' && <div></div>} {/* Empty div to maintain flex layout */}
+              
+              <button
+                className="px-6 py-3 rounded-lg bg-primary hover:bg-primary-dark text-white transition-colors flex items-center"
+                onClick={nextStep}
+                disabled={isLoading}
+              >
+                {isLoading ? (
+                  <>
+                    <span className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></span>
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    {getNextButtonText()}
+                    {currentStep === 'summary' ? (
+                      <Check size={18} className="ml-2" />
+                    ) : (
+                      <ArrowRight size={18} className="ml-2" />
+                    )}
+                  </>
+                )}
+              </button>
+            </div>
           </motion.div>
         </AnimatePresence>
       </div>

@@ -4,6 +4,7 @@ import Header from './Header';
 import Sidebar from './Sidebar';
 import MobileNav from './MobileNav';
 import Footer from './Footer';
+import Breadcrumb from '../common/Breadcrumb';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 
 const Layout = () => {
@@ -20,12 +21,21 @@ const Layout = () => {
 
   // Get page title based on current route
   const getPageTitle = () => {
-    const path = location.pathname.split('/')[1];
+    const pathParts = location.pathname.split('/');
+    const path = pathParts[1];
+    
+    // Handle special space dashboard case
+    if (pathParts.length >= 4 && path === 'spaces' && pathParts[3] === 'dashboard') {
+      return 'Space Dashboard';
+    }
+    
     switch (path) {
       case 'dashboard':
         return 'Dashboard';
       case 'spaces':
-        return 'Spaces Explorer';
+        return pathParts.length >= 3 && pathParts[2] === 'my' 
+          ? 'My Spaces'
+          : 'Spaces Explorer';
       case 'create-space':
         return 'Create Space';
       case 'proposals':
@@ -34,10 +44,21 @@ const Layout = () => {
         return 'Treasury Management';
       case 'smart-contract':
         return 'Smart Contract AI';
+      case 'governance':
+        return 'Governance';
+      case 'dao':
+        if (pathParts.length >= 4 && pathParts[3] === 'governance') {
+          return pathParts.length >= 6 && pathParts[4] === 'contract' ? 'Edit Contract' : 'Governance';
+        }
+        return 'DAO Management';
       case 'profile':
         return 'My Profile';
       case 'admin':
         return 'Admin Panel';
+      case 'project-management':
+        return 'Project Management';
+      case 'academy':
+        return 'Academy';
       default:
         return 'BAD DAO';
     }
@@ -78,6 +99,7 @@ const Layout = () => {
         {/* Main Content */}
         <main className="flex-1 p-md md:p-lg">
           <div className="max-w-7xl mx-auto animate-enter">
+            <Breadcrumb />
             <Outlet />
           </div>
         </main>
