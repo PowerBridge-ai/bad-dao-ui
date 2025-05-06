@@ -1,115 +1,97 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useRef, useEffect } from 'react';
 
-interface Distribution {
+interface TokenDistribution {
   category: string;
   percentage: number;
-  color?: string;
 }
 
 interface TokenDistributionChartProps {
-  distribution: Distribution[];
+  distribution: TokenDistribution[];
   size?: number;
 }
 
-// Default colors for the chart segments
-const defaultColors = [
-  '#3b82f6', // blue
-  '#10b981', // green
-  '#ec4899', // pink
-  '#8b5cf6', // purple
-  '#f59e0b', // amber
-  '#fbbf24', // yellow
-  '#06b6d4', // cyan
-  '#f87171'  // red
-];
-
 const TokenDistributionChart: React.FC<TokenDistributionChartProps> = ({ 
   distribution, 
-  size = 150 
+  size = 120 
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
-  // Prepare data with colors
-  const data = distribution.map((item, index) => ({
-    ...item,
-    color: item.color || defaultColors[index % defaultColors.length]
-  }));
-  
-  // Draw the pie chart
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
+  // Color palette for the chart
+  const colors = [
+    '#10B981', // emerald-500
+    '#3B82F6', // blue-500
+    '#8B5CF6', // violet-500
+    '#EC4899', // pink-500
+    '#F59E0B', // amber-500
+    '#6366F1', // indigo-500
+    '#EF4444', // red-500
+    '#06B6D4'  // cyan-500
+  ];
 
+  useEffect(() => {
+    if (!canvasRef.current || !distribution.length) return;
+    
+    const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-
+    
     // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     
-    // Calculate total (should be 100, but just in case)
-    const total = data.reduce((sum, item) => sum + item.percentage, 0);
+    // Calculate total to normalize percentages
+    const total = distribution.reduce((sum, item) => sum + item.percentage, 0);
     
-    // Set up drawing parameters
+    // Center of the chart
     const centerX = canvas.width / 2;
     const centerY = canvas.height / 2;
-    const radius = Math.min(centerX, centerY) * 0.8;
+    const radius = Math.min(centerX, centerY) - 2;
     
     // Starting angle
-    let startAngle = -Math.PI / 2; // Start from top
+    let startAngle = -0.5 * Math.PI; // Start at 12 o'clock
     
-    // Draw each segment
-    data.forEach(item => {
-      const segmentAngle = (item.percentage / total) * 2 * Math.PI;
-      const endAngle = startAngle + segmentAngle;
+    // Draw slices
+    distribution.forEach((item, index) => {
+      const sliceAngle = (item.percentage / total) * 2 * Math.PI;
+      const endAngle = startAngle + sliceAngle;
       
-      // Draw segment
+      // Draw slice
       ctx.beginPath();
       ctx.moveTo(centerX, centerY);
       ctx.arc(centerX, centerY, radius, startAngle, endAngle);
       ctx.closePath();
       
       // Fill with color
-      ctx.fillStyle = item.color!;
+      ctx.fillStyle = colors[index % colors.length];
       ctx.fill();
       
-      // Stroke
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = '#262639';
-      ctx.stroke();
-      
-      // Update start angle for next segment
+      // Update starting angle for next slice
       startAngle = endAngle;
     });
     
-    // Draw center circle for donut effect
+    // Draw center circle to create donut chart
     ctx.beginPath();
-    ctx.arc(centerX, centerY, radius * 0.5, 0, 2 * Math.PI);
-    ctx.fillStyle = '#1E1E2E';
+    ctx.arc(centerX, centerY, radius * 0.6, 0, 2 * Math.PI);
+    ctx.fillStyle = '#1a1b25'; // Dark background
     ctx.fill();
-    ctx.lineWidth = 1;
-    ctx.strokeStyle = '#262639';
-    ctx.stroke();
-  }, [data, size]);
-  
+  }, [distribution]);
+
   return (
     <div className="flex flex-col items-center">
       <canvas 
         ref={canvasRef} 
         width={size} 
-        height={size}
+        height={size} 
         className="mb-2"
       />
-      
-      {/* Legend */}
-      <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
-        {data.map((item, index) => (
-          <div key={index} className="flex items-center">
+      <div className="flex flex-wrap gap-2 justify-center mt-1">
+        {distribution.map((item, index) => (
+          <div key={index} className="flex items-center text-xs">
             <div 
-              className="w-3 h-3 rounded-full mr-1" 
-              style={{ backgroundColor: item.color }}
+              className="w-2 h-2 rounded-full mr-1"
+              style={{ backgroundColor: colors[index % colors.length] }}
             />
-            <span className="truncate">
-              {item.category}: {item.percentage}%
+            <span className="text-white/70">
+              {item.category} ({item.percentage}%)
             </span>
           </div>
         ))}

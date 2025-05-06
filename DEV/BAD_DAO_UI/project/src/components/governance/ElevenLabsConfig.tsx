@@ -1,191 +1,172 @@
 import React, { useState, useEffect } from 'react';
-import { X, Volume2, Check } from 'lucide-react';
-import elevenlabsService, { Voice } from '../../services/elevenlabsService';
+import { X, Check, Info } from 'lucide-react';
+
+interface Voice {
+  voice_id: string;
+  name: string;
+}
 
 interface ElevenLabsConfigProps {
   onClose: () => void;
-  onSave: (apiKey: string, selectedVoiceId: string) => void;
-  apiKey: string;
-  selectedVoiceId: string;
+  onSave: (apiKey: string, voiceId: string) => void;
+  apiKey?: string;
+  selectedVoiceId?: string;
 }
 
-const ElevenLabsConfig: React.FC<ElevenLabsConfigProps> = ({ 
-  onClose, 
+const ElevenLabsConfig: React.FC<ElevenLabsConfigProps> = ({
+  onClose,
   onSave,
-  apiKey: initialApiKey,
-  selectedVoiceId: initialVoiceId
+  apiKey = '',
+  selectedVoiceId = ''
 }) => {
-  const [apiKey, setApiKey] = useState(initialApiKey || '');
+  const [key, setKey] = useState(apiKey);
+  const [voiceId, setVoiceId] = useState(selectedVoiceId);
   const [voices, setVoices] = useState<Voice[]>([]);
-  const [selectedVoiceId, setSelectedVoiceId] = useState(initialVoiceId || '');
   const [isLoading, setIsLoading] = useState(false);
-  const [isValid, setIsValid] = useState(false);
-  const [testMessage, setTestMessage] = useState('');
-
+  const [error, setError] = useState('');
+  
+  // Default voices to display before API key is provided
+  const defaultVoices: Voice[] = [
+    { voice_id: '21m00Tcm4TlvDq8ikWAM', name: 'Rachel' },
+    { voice_id: 'AZnzlk1XvdvUeBnXmlld', name: 'Domi' },
+    { voice_id: 'EXAVITQu4vr4xnSDxMaL', name: 'Bella' },
+    { voice_id: 'ErXwobaYiN019PkySvjV', name: 'Antoni' },
+    { voice_id: 'MF3mGyEYCl7XYWbV9V6O', name: 'Elli' },
+    { voice_id: 'TxGEqnHWrfWFTfGW9XjX', name: 'Josh' },
+    { voice_id: 'VR6AewLTigWG4xSOukaG', name: 'Arnold' },
+    { voice_id: 'pNInz6obpgDQGcFmaJgB', name: 'Adam' },
+    { voice_id: 'yoZ06aMxZJJ28mfd3POQ', name: 'Sam' }
+  ];
+  
+  // Load voices if API key is provided
   useEffect(() => {
-    // Load voices if API key is already set
-    if (apiKey) {
-      validateAndLoadVoices(apiKey);
+    if (key) {
+      fetchVoices();
+    } else {
+      setVoices(defaultVoices);
     }
-  }, []);
-
-  const validateAndLoadVoices = async (key: string) => {
+  }, [key]);
+  
+  // Fetch voices from the ElevenLabs API
+  const fetchVoices = async () => {
     setIsLoading(true);
+    setError('');
+    
     try {
-      const isValid = await elevenlabsService.testApiKey(key);
-      setIsValid(isValid);
-      
-      if (isValid) {
-        elevenlabsService.initElevenLabsService(key);
-        const voiceList = await elevenlabsService.getVoices();
-        setVoices(voiceList);
-        
-        // Set default voice if not already set
-        if (!selectedVoiceId && voiceList.length > 0) {
-          setSelectedVoiceId(voiceList[0].voice_id);
+      const response = await fetch('https://api.elevenlabs.io/v1/voices', {
+        headers: {
+          'xi-api-key': key
         }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch voices. Please check your API key.');
       }
-    } catch (error) {
-      console.error('Error validating API key:', error);
-      setIsValid(false);
+      
+      const data = await response.json();
+      setVoices(data.voices || []);
+    } catch (err) {
+      console.error('Error fetching voices:', err);
+      setError('Failed to fetch voices. Please check your API key.');
+      setVoices(defaultVoices);
     } finally {
       setIsLoading(false);
     }
   };
-
-  const handleKeyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setApiKey(e.target.value);
-    setIsValid(false);
-  };
-
-  const handleVerifyClick = () => {
-    if (apiKey) {
-      validateAndLoadVoices(apiKey);
-    }
-  };
-
-  const handleVoiceSelect = (voiceId: string) => {
-    setSelectedVoiceId(voiceId);
-  };
-
-  const handleTestVoice = async (voiceId: string) => {
-    if (apiKey && voiceId) {
-      setTestMessage('Testing voice...');
-      try {
-        const success = await elevenlabsService.speak(
-          'Hello, this is a test of my voice for the BAD DAO contract builder.',
-          voiceId
-        );
-        
-        setTestMessage(success ? 'Voice test successful!' : 'Voice test failed');
-        setTimeout(() => setTestMessage(''), 3000);
-      } catch (error) {
-        console.error('Error testing voice:', error);
-        setTestMessage('Voice test failed');
-        setTimeout(() => setTestMessage(''), 3000);
-      }
-    }
-  };
-
+  
+  // Handle save
   const handleSave = () => {
-    if (apiKey && selectedVoiceId) {
-      onSave(apiKey, selectedVoiceId);
-      onClose();
+    if (!key) {
+      setError('API key is required');
+      return;
     }
+    
+    if (!voiceId) {
+      setError('Please select a voice');
+      return;
+    }
+    
+    onSave(key, voiceId);
+    onClose();
   };
-
+  
   return (
-    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-      <div className="bg-[#1c1e2a] rounded-lg w-full max-w-lg p-6 shadow-xl">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-semibold text-white">ElevenLabs Voice Configuration</h2>
-          <button onClick={onClose} className="text-neutral-light hover:text-white">
-            <X size={20} />
-          </button>
-        </div>
-
-        <div className="space-y-6">
-          <div>
-            <label className="block text-sm font-medium text-neutral-light mb-1">
-              API Key
-            </label>
-            <div className="flex">
-              <input
-                type="password"
-                value={apiKey}
-                onChange={handleKeyChange}
-                placeholder="Enter your ElevenLabs API key"
-                className="flex-grow bg-neutral/50 border border-neutral-light/30 rounded-l-lg p-2 text-white"
-              />
-              <button
-                onClick={handleVerifyClick}
-                disabled={!apiKey || isLoading}
-                className={`px-4 rounded-r-lg flex items-center justify-center ${
-                  isValid ? 'bg-green-600' : 'bg-primary'
-                } disabled:bg-neutral-light/30`}
-              >
-                {isLoading ? (
-                  <span className="animate-pulse">...</span>
-                ) : isValid ? (
-                  <Check size={18} />
-                ) : (
-                  'Verify'
-                )}
-              </button>
-            </div>
-            {isValid && <p className="text-green-500 text-xs mt-1">API key is valid</p>}
+    <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+      <div className="bg-neutral-dark rounded-lg w-full max-w-md">
+        <div className="p-6">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-bold text-white">Voice Configuration</h2>
+            <button 
+              className="text-neutral-light hover:text-white"
+              onClick={onClose}
+            >
+              <X size={20} />
+            </button>
           </div>
-
-          {isValid && voices.length > 0 && (
-            <div>
-              <label className="block text-sm font-medium text-neutral-light mb-2">
-                Select Voice
-              </label>
-              <div className="max-h-40 overflow-y-auto border border-neutral-light/30 rounded-lg">
-                {voices.map((voice) => (
-                  <div
-                    key={voice.voice_id}
-                    className={`flex items-center justify-between p-3 hover:bg-neutral-light/10 cursor-pointer ${
-                      selectedVoiceId === voice.voice_id ? 'bg-primary/20' : ''
-                    }`}
-                    onClick={() => handleVoiceSelect(voice.voice_id)}
-                  >
-                    <div className="flex items-center">
-                      <div className={`w-3 h-3 rounded-full mr-3 ${
-                        selectedVoiceId === voice.voice_id ? 'bg-primary' : 'bg-neutral-light/30'
-                      }`} />
-                      <span>{voice.name}</span>
-                    </div>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleTestVoice(voice.voice_id);
-                      }}
-                      className="text-neutral-light hover:text-primary"
-                    >
-                      <Volume2 size={16} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-              {testMessage && (
-                <p className="text-primary text-xs mt-1">{testMessage}</p>
-              )}
+          
+          {error && (
+            <div className="mb-4 p-3 bg-red-500/20 text-red-400 rounded-md flex items-start">
+              <Info size={16} className="mr-2 mt-0.5 flex-shrink-0" />
+              <p className="text-sm">{error}</p>
             </div>
           )}
-
-          <div className="flex justify-end space-x-3 mt-6">
-            <button
+          
+          <div className="space-y-4">
+            <div>
+              <label className="block text-white mb-2">ElevenLabs API Key</label>
+              <input 
+                type="password"
+                className="w-full bg-neutral-dark border border-neutral-light/30 rounded-lg p-2"
+                value={key}
+                onChange={(e) => setKey(e.target.value)}
+                placeholder="Enter your ElevenLabs API key"
+              />
+              <p className="text-xs text-neutral-light mt-1">
+                Get your API key from <a href="https://elevenlabs.io/app" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">ElevenLabs dashboard</a>
+              </p>
+            </div>
+            
+            <div>
+              <label className="block text-white mb-2">Select Voice</label>
+              <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
+                {isLoading ? (
+                  <div className="flex justify-center p-4">
+                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                  </div>
+                ) : (
+                  voices.map((voice) => (
+                    <div 
+                      key={voice.voice_id}
+                      className={`flex items-center p-2 rounded-md cursor-pointer ${
+                        voiceId === voice.voice_id ? 'bg-primary/20 border border-primary/50' : 'hover:bg-neutral-light/5 border border-transparent'
+                      }`}
+                      onClick={() => setVoiceId(voice.voice_id)}
+                    >
+                      <div className={`w-4 h-4 rounded-full border ${
+                        voiceId === voice.voice_id ? 'border-primary bg-primary' : 'border-neutral-light'
+                      } flex items-center justify-center mr-2`}>
+                        {voiceId === voice.voice_id && <Check size={12} />}
+                      </div>
+                      <span className="text-white">{voice.name}</span>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+          
+          <div className="flex justify-end gap-2 mt-6">
+            <button 
+              className="px-4 py-2 bg-neutral-light/10 hover:bg-neutral-light/20 text-white rounded-md"
               onClick={onClose}
-              className="px-4 py-2 border border-neutral-light/30 rounded-lg text-white hover:bg-neutral-light/10"
             >
               Cancel
             </button>
-            <button
+            <button 
+              className="px-4 py-2 bg-primary hover:bg-primary/80 text-white rounded-md flex items-center"
               onClick={handleSave}
-              disabled={!isValid || !selectedVoiceId}
-              className="px-4 py-2 bg-primary rounded-lg text-white hover:bg-primary/80 disabled:bg-neutral-light/30"
             >
+              <Check size={16} className="mr-1" />
               Save Configuration
             </button>
           </div>

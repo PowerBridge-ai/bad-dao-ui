@@ -1,7 +1,7 @@
+@import './styles/markdown.css';
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-@import './styles/markdown.css';
 
 /* Base styles */
 @layer base {
@@ -106,3 +106,50 @@
     @apply bg-neutral-dark/50 backdrop-blur-md border border-neutral-light;
   }
 }
+
+/* COMMENTED OUT: These rules were hiding UI elements
+div:has(> span:contains("Listening:")),
+div:has(> div:contains("Listening:")),
+div:has(> p:contains("Listening:")) {
+  display: none !important;
+  visibility: hidden !important;
+  height: 0 !important;
+  width: 0 !important;
+  overflow: hidden !important;
+  position: absolute !important;
+  z-index: -9999 !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
+div.mb-3,
+div.p-2.bg-neutral-dark,
+div.rounded-md.border,
+div.border-neutral-light\/10 {
+  display: none !important;
+}
+
+[id*="listening"],
+[class*="listening"],
+div.bg-primary-light,
+div.bg-primary\/10,
+div.text-primary.rounded-full,
+div.px-3.py-1,
+.animate-pulse,
+.bg-blue-500,
+.bg-primary,
+.bg-primary-light {
+  display: none !important;
+}
+
+#step-treasury-management ~ div:not(:has(> button)),
+#step-treasury-management ~ div:not(:has(> [class*="Command"])) {
+  display: none !important;
+}
+
+#listening-interface,
+.listening-status,
+[data-listening="true"] {
+  display: none !important;
+}
+*/

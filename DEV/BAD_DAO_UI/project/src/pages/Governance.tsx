@@ -79,7 +79,7 @@ const Governance: React.FC<GovernanceProps> = () => {
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
 
   // New state to control the integrated wizard mode
-  const [wizardMode, setWizardMode] = useState<string>('hidden');
+  const [wizardMode, setWizardMode] = useState<'hidden' | 'sidebar' | 'fullscreen'>('hidden');
 
   // Add voice workflow states
   const [isRecording, setIsRecording] = useState<boolean>(false);
@@ -91,6 +91,13 @@ const Governance: React.FC<GovernanceProps> = () => {
   const recognitionRef = useRef<any>(null);
   const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
   
+  // Additional state for showing node creation feedback
+  const [createdNodes, setCreatedNodes] = useState<Record<string, boolean>>({});
+  const [nodeCreationFeedback, setNodeCreationFeedback] = useState<string | null>(null);
+  
+  // Add missing currentWorkflowStep state
+  const [currentWorkflowStep, setCurrentWorkflowStep] = useState<string>('');
+
   // Contract templates for the add contract modal
   const contractTemplates: ContractTemplate[] = [
     {
@@ -136,6 +143,9 @@ const Governance: React.FC<GovernanceProps> = () => {
       icon: <Bot size={24} className="text-primary" />
     },
   ];
+
+  // Add a ref for the NodeEditor
+  const nodeEditorRef = useRef<any>(null);
 
   useEffect(() => {
     // Fetch active contracts
@@ -243,6 +253,9 @@ const Governance: React.FC<GovernanceProps> = () => {
       recognitionRef.current.interimResults = true;
       
       recognitionRef.current.onresult = (event: any) => {
+        // Don't process results if AI is currently speaking
+        if (isPlaying) return;
+        
         const transcript = Array.from(event.results)
           .map((result: any) => result[0].transcript)
           .join('');
@@ -267,7 +280,7 @@ const Governance: React.FC<GovernanceProps> = () => {
             stopRecording();
             processUserResponse(transcript);
           }
-        }, 2000); // 2 seconds of silence to auto-submit
+        }, 2000);
       };
       
       recognitionRef.current.onend = () => {
@@ -288,11 +301,17 @@ const Governance: React.FC<GovernanceProps> = () => {
         clearTimeout(silenceTimerRef.current);
       }
     };
-  }, []);
+  }, [isPlaying]); // Add isPlaying as a dependency to react to AI speaking state changes
 
   // Start recording function
   const startRecording = () => {
     if (!recognitionRef.current) return;
+    
+    // Don't start recording if audio is playing
+    if (isPlaying) {
+      console.log('Cannot start recording while audio is playing');
+      return;
+    }
     
     try {
       // Clear any previous user response
@@ -304,12 +323,6 @@ const Governance: React.FC<GovernanceProps> = () => {
         chatInput.value = '';
         chatInput.placeholder = 'Listening...';
         chatInput.classList.add('listening');
-      }
-      
-      // Don't start recording if audio is playing
-      if (isPlaying) {
-        console.log('Cannot start recording while audio is playing');
-        return;
       }
       
       setIsRecording(true);
@@ -355,6 +368,7 @@ const Governance: React.FC<GovernanceProps> = () => {
     const chatInput = document.getElementById('chat-input') as HTMLInputElement;
     if (chatInput) {
       chatInput.placeholder = 'Type your response...';
+      chatInput.value = ''; // Clear the input field
     }
     
     // Create user message
@@ -364,101 +378,269 @@ const Governance: React.FC<GovernanceProps> = () => {
       content: response.trim()
     };
     
+    // Add user message to chat
     setChatMessages(prev => [...prev, userMessage]);
     
-    // Update wizard data with the step completed
-    const currentStepId = getCurrentStepFromResponse(response);
-    
-    if (currentStepId) {
-      setWizardData(prev => ({
-        ...prev,
-        [currentStepId]: response.trim(),
-        [`${currentStepId}-completed`]: true
-      }));
+    // Handle "I don't know" responses with multiple choice options
+    if (response.toLowerCase().includes("i don't know") || response.toLowerCase().includes("don't know") || response.toLowerCase().includes("not sure")) {
+      let currentStep = '';
+      for (const step in wizardData) {
+        if (wizardData[`${step}-started`] && !wizardData[`${step}-completed`]) {
+          currentStep = step;
+          break;
+        }
+      }
       
-      // Generate AI feedback based on response
-      generateAIFeedback(response, currentStepId);
+      if (currentStep) {
+        const suggestedOptions = getSuggestedOptionsForStep(currentStep);
+        const suggestedMessage = {
+          id: `ai-options-${Date.now()}`,
+          role: 'ai' as 'ai',
+          content: `No problem! Here are some suggestions to choose from:\n\n${suggestedOptions.map((option, index) => `**Option ${index + 1}**: ${option}`).join('\n\n')}\n\nPlease select 1, 2, or 3 or say your own response.`
+        };
+        
+        setChatMessages(prev => [...prev, suggestedMessage]);
+        
+        // Play the voice message with options
+        playVoiceMessage(suggestedMessage.id, suggestedMessage.content);
+        return;
+      }
+    }
+    
+    // Check if response is a number choice (1, 2, 3)
+    const numberChoice = parseInt(response.trim());
+    if (!isNaN(numberChoice) && numberChoice >= 1 && numberChoice <= 3) {
+      let currentStep = '';
+      for (const step in wizardData) {
+        if (wizardData[`${step}-started`] && !wizardData[`${step}-completed`]) {
+          currentStep = step;
+          break;
+        }
+      }
+      
+      if (currentStep) {
+        const suggestedOptions = getSuggestedOptionsForStep(currentStep);
+        if (numberChoice <= suggestedOptions.length) {
+          const selectedOption = suggestedOptions[numberChoice - 1];
+          
+          // Create a new user message with the selected option
+          const selectedMessage = {
+            id: `user-selection-${Date.now()}`,
+            role: 'user' as 'user',
+            content: `I choose option ${numberChoice}: ${selectedOption}`
+          };
+          
+          setChatMessages(prev => [...prev, selectedMessage]);
+          
+          // Process the actual selection
+          handleStepCompletion(currentStep, selectedOption);
+          return;
+        }
+      }
+    }
+    
+    // Update wizard data with the step completed
+    const currentStep = getCurrentStep();
+    if (currentStep) {
+      handleStepCompletion(currentStep, response);
     }
   };
 
-  // Get current step from user response context
-  const getCurrentStepFromResponse = (response: string): string | null => {
-    // This is a placeholder - in a real implementation, you'd track the current step
-    // For now, try to find which step was most recently started
-    const steps = ['project-context', 'token-design', 'roles-permissions', 'voting-mechanics', 'proposal-rules', 'treasury-management'];
-    
-    for (const step of steps) {
+  // Get the current active step
+  const getCurrentStep = (): string => {
+    for (const step in wizardData) {
       if (wizardData[`${step}-started`] && !wizardData[`${step}-completed`]) {
         return step;
       }
     }
-    
-    return null;
+    return '';
   };
 
-  // Generate AI feedback
-  const generateAIFeedback = (userResponse: string, stepId: string) => {
-    // Simple default responses based on step
-    let aiResponse = 'Thank you for your input!';
-    let nextStepId = '';
+  // Handle step completion and node creation
+  const handleStepCompletion = (stepId: string, response: string) => {
+    // Mark step as completed
+    setWizardData(prev => ({
+      ...prev,
+      [stepId]: true,
+      [`${stepId}-completed`]: true
+    }));
     
-    // Determine next step based on current step
-    if (stepId === 'project-context') {
-      aiResponse = `Thanks for explaining your project! Now let's talk about your token design.`;
-      nextStepId = 'token-design';
-    } else if (stepId === 'token-design') {
-      aiResponse = `Great token setup! Now let's configure the roles and permissions for your DAO.`;
-      nextStepId = 'roles-permissions';
-    } else if (stepId === 'roles-permissions') {
-      aiResponse = `Those roles make sense. Let's set up your voting mechanics next.`;
-      nextStepId = 'voting-mechanics';
-    } else if (stepId === 'voting-mechanics') {
-      aiResponse = `Perfect voting setup! Now let's define who can create proposals and what's required.`;
-      nextStepId = 'proposal-rules';
-    } else if (stepId === 'proposal-rules') {
-      aiResponse = `Excellent proposal rules! Finally, let's talk about treasury management.`;
-      nextStepId = 'treasury-management';
-    } else if (stepId === 'treasury-management') {
-      aiResponse = `Great! We've now completed the configuration of your DAO. You can review all settings or make changes as needed.`;
+    // Add node based on the step and response
+    addNodeBasedOnStep(stepId, response);
+    
+    // Show success notification
+    setNodeCreationFeedback(`✅ ${getStepDisplayName(stepId)} configuration saved`);
+    setTimeout(() => setNodeCreationFeedback(null), 3000);
+    
+    // Move to next step automatically after a pause
+    setTimeout(() => {
+      const nextStep = getNextStep(stepId);
+      if (nextStep) {
+        startWorkflowStep(nextStep, getPromptForStep(nextStep));
+      } else {
+        // Workflow completed
+        const completionMessage = {
+          id: `ai-complete-${Date.now()}`,
+          role: 'ai' as 'ai',
+          content: "Great job! You've completed the DAO configuration workflow. Your contract nodes have been created and configured based on your responses."
+        };
+        
+        setChatMessages(prev => [...prev, completionMessage]);
+        playVoiceMessage(completionMessage.id, completionMessage.content);
+      }
+    }, 2000);
+  };
+
+  // Get suggested options for each step
+  const getSuggestedOptionsForStep = (stepId: string): string[] => {
+    switch(stepId) {
+      case 'project-context':
+        return [
+          "A governance DAO for open-source software development",
+          "A community treasury to fund public goods and grants",
+          "An investment DAO focused on DeFi protocol investments"
+        ];
+      case 'token-design':
+        return [
+          "Standard ERC-20 governance token with 100 million supply",
+          "DAO token with 10 million supply and 18 decimals",
+          "Community token with 1 billion supply and deflationary mechanism"
+        ];
+      case 'roles-permissions':
+        return [
+          "Core team (20%), Contributors (30%), Community (50%)",
+          "Founders (15%), Investors (25%), Community (60%)",
+          "Core developers (25%), Treasury (25%), Community voters (50%)"
+        ];
+      case 'voting-mechanics':
+        return [
+          "3 day voting period, 20% quorum, 1% proposal threshold",
+          "7 day voting period, 10% quorum, 0.5% proposal threshold",
+          "5 day voting period, 15% quorum, 1% proposal threshold"
+        ];
+      case 'proposal-rules':
+        return [
+          "Any token holder can propose, 3 day discussion period required",
+          "Requires 1% token holding to propose, 2 day discussion period",
+          "Tiered proposal system based on token holdings"
+        ];
+      case 'treasury-management':
+        return [
+          "Multi-signature wallet with 3/5 approval threshold",
+          "DAO-governed treasury with proposal-based withdrawals",
+          "Programmatic treasury with automated allocations"
+        ];
+      default:
+        return [
+          "Option A: Standard configuration",
+          "Option B: Advanced configuration",
+          "Option C: Custom configuration"
+        ];
+    }
+  };
+
+  // Start the workflow step by adding a question to chat and activating voice
+  const startWorkflowStep = (stepId: string, question: string) => {
+    // Stop any active recording or playback
+    if (isRecording) {
+      stopRecording();
+    }
+
+    // Mark this step as active
+    setCurrentWorkflowStep(stepId);
+    
+    // Add step active indicator class to the current step in UI
+    const stepElements = document.querySelectorAll('.workflow-step');
+    stepElements.forEach((el) => {
+      el.classList.remove('step-active-indicator', 'step-active');
+    });
+    
+    const currentStepElement = document.querySelector(`[data-step="${stepId}"]`);
+    if (currentStepElement) {
+      currentStepElement.classList.add('step-active-indicator', 'step-active');
+      
+      // Scroll into view
+      currentStepElement.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
     }
     
-    // Add AI message to chat
+    // Add AI message to chat with the question
+    const options = getSuggestedOptionsForStep(stepId);
+    const optionsText = `\n\nIf you're not sure, just say "I don't know" and I'll provide some suggestions. Or you can choose one of these options:\n\n${options.map((option, index) => `**Option ${index + 1}**: ${option}`).join('\n\n')}`;
+    
     const aiMessage = {
       id: `ai-${Date.now()}`,
       role: 'ai' as 'ai',
-      content: aiResponse
+      content: question + optionsText
     };
     
     setChatMessages(prev => [...prev, aiMessage]);
     
-    // Use ElevenLabs to read the response
-    playVoiceMessage(aiMessage.id, aiResponse);
+    // Store that this step was started
+    setWizardData(prev => ({
+      ...prev,
+      [`${stepId}-started`]: true
+    }));
     
-    // If there's a next step, queue it up
-    if (nextStepId) {
-      setTimeout(() => {
-        startWorkflowStep(nextStepId, getPromptForStep(nextStepId));
-      }, 1000); // Slight delay before starting next step
+    // Focus chat area
+    const chatArea = document.querySelector('.chat-container');
+    if (chatArea) {
+      chatArea.scrollIntoView({ behavior: 'smooth', block: 'end' });
     }
+    
+    // Don't automatically play voice or start recording to prevent crashes
+    // Instead let the user start recording manually or read the text
   };
 
-  // Get the prompt question for a given step
+  // Helper to get display names for steps
+  const getStepDisplayName = (stepId: string): string => {
+    const displayNames: Record<string, string> = {
+      'project-context': 'Project Context',
+      'token-design': 'Token Design',
+      'roles-permissions': 'Roles & Permissions',
+      'voting-mechanics': 'Voting Mechanics',
+      'proposal-rules': 'Proposal Rules',
+      'treasury-management': 'Treasury Management',
+    };
+    
+    return displayNames[stepId] || stepId;
+  };
+
+  // Get the next step in the workflow
+  const getNextStep = (currentStep: string): string => {
+    const workflowSteps = [
+      'project-context',
+      'token-design',
+      'roles-permissions',
+      'voting-mechanics',
+      'proposal-rules',
+      'treasury-management'
+    ];
+    
+    const currentIndex = workflowSteps.indexOf(currentStep);
+    if (currentIndex !== -1 && currentIndex < workflowSteps.length - 1) {
+      return workflowSteps[currentIndex + 1];
+    }
+    
+    return '';
+  };
+
+  // Get the prompt for each step
   const getPromptForStep = (stepId: string): string => {
-    switch (stepId) {
+    switch(stepId) {
       case 'project-context':
         return "Let's start with your project. What is your DAO about, and what is its primary purpose?";
       case 'token-design':
-        return "Will your governance use a token? If yes, what will the token be called?";
+        return "Now, let's configure your DAO token. What should the token supply be, and do you have any specific requirements?";
       case 'roles-permissions':
-        return "Who are the participants in your DAO and what roles will they have? (e.g., token holders, delegates, admins, council members, etc.)";
+        return "Let's define roles in your DAO. How would you like to structure roles and permissions?";
       case 'voting-mechanics':
-        return "How should voting work in your DAO? (E.g., how long do votes last, what % of votes are needed to pass, etc.)";
+        return "How should voting work in your DAO? What voting period, quorum, and proposal threshold would you like?";
       case 'proposal-rules':
-        return "Who can create proposals and what's required for a proposal to go live?";
+        return "What rules should govern proposals in your DAO? Who can create proposals and what requirements should there be?";
       case 'treasury-management':
-        return "Will your DAO have a treasury? If yes, who can access or vote on fund allocations?";
+        return "Finally, how should the DAO treasury be managed? What security measures or spending policies would you like?";
       default:
-        return "Please tell me more about this aspect of your DAO.";
+        return "Let's continue configuring your DAO. What would you like to set up next?";
     }
   };
 
@@ -478,17 +660,41 @@ const Governance: React.FC<GovernanceProps> = () => {
       const voiceId = localStorage.getItem('elevenlabsVoiceId') || '';
       
       if (!apiKey || !voiceId) {
-        console.error('ElevenLabs API key or voice ID not configured');
-        alert('Please configure ElevenLabs voice settings to enable AI voice.');
-        setIsPlaying(false);
+        console.log('ElevenLabs API key or voice ID not configured - skipping voice playback');
+        // Don't show alert to improve user experience
+        // Continue with the flow without voice
+        setTimeout(() => {
+          setIsPlaying(false);
+          setCurrentPlayingMessageId(null);
+          
+          // Only start recording after AI is done speaking
+          setTimeout(() => {
+            // Find and focus the chat input
+            const chatInput = document.getElementById('chat-input') as HTMLInputElement;
+            if (chatInput) {
+              chatInput.focus();
+              chatInput.placeholder = 'Listening...';
+            }
+            
+            // Make sure we're not already recording before starting
+            if (!isRecording) {
+              startRecording();
+            }
+          }, 500);
+        }, 1000);
         return;
       }
       
       // Initialize service with API key
       elevenlabsService.initElevenLabsService(apiKey);
       
-      // Speak the text
-      await elevenlabsService.speak(text, voiceId);
+      try {
+        // Try to speak the text
+        await elevenlabsService.speak(text, voiceId);
+      } catch (speechError) {
+        console.error('Error with speech synthesis:', speechError);
+        // Continue with the flow even if speech fails
+      }
       
       console.log('Speech playback completed');
       
@@ -496,7 +702,7 @@ const Governance: React.FC<GovernanceProps> = () => {
       setIsPlaying(false);
       setCurrentPlayingMessageId(null);
       
-      // Focus the input field and start recording after a short delay
+      // Only start recording after AI is done speaking
       setTimeout(() => {
         // Find and focus the chat input
         const chatInput = document.getElementById('chat-input') as HTMLInputElement;
@@ -505,150 +711,135 @@ const Governance: React.FC<GovernanceProps> = () => {
           chatInput.placeholder = 'Listening...';
         }
         
-        startRecording();
+        // Make sure we're not already recording before starting
+        if (!isRecording) {
+          startRecording();
+        }
       }, 500);
       
     } catch (error) {
       console.error('Error playing voice message:', error);
       setIsPlaying(false);
       setCurrentPlayingMessageId(null);
-    }
-  };
-
-  // Start the workflow step by adding a question to chat and activating voice
-  const startWorkflowStep = (stepId: string, question: string) => {
-    // Add AI message to chat with the question
-    const aiMessage = {
-      id: `ai-${Date.now()}`,
-      role: 'ai' as 'ai',
-      content: question
-    };
-    
-    setChatMessages(prev => [...prev, aiMessage]);
-    
-    // Store that this step was started
-    setWizardData(prev => ({
-      ...prev,
-      [`${stepId}-started`]: true
-    }));
-    
-    // Play the voice message, which will automatically start recording after
-    playVoiceMessage(aiMessage.id, question);
-    
-    // Scroll chat area into view
-    const chatArea = document.querySelector('.chat-area');
-    if (chatArea) {
-      chatArea.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-    
-    // Show visual connection between workflow and chat
-    showWorkflowConnection(stepId);
-    
-    console.log(`Started workflow step: ${stepId} with question: ${question}`);
-  };
-
-  // Show visual connection between workflow step and chat
-  const showWorkflowConnection = (stepId: string) => {
-    // First reset any active connections
-    document.querySelectorAll('.step-active-indicator').forEach(el => {
-      el.classList.remove('step-active-indicator');
-    });
-    
-    // Add active indicator to the current step
-    const stepElement = document.getElementById(`step-${stepId}`);
-    if (stepElement) {
-      stepElement.classList.add('step-active-indicator');
-    }
-  };
-
-  const handleWizardComplete = (wizardData: any) => {
-    console.log('Wizard completed with data:', wizardData);
-    
-    // Store the wizard data for code generation
-    setWizardData(wizardData);
-    
-    // Here you would process the wizard data to create actual contract nodes
-    // in the contract builder interface. For example:
-    // - Create a token node if token data was provided
-    // - Create a governance node if governance settings were provided
-    // - Add connections between them
-    
-    // Hide the wizard after completion
-    setWizardMode('hidden');
-    
-    // Process the wizard data and update active contracts as needed
-    // This is simplified - in a real implementation you'd map wizard data to contracts
-    const newContracts: ActiveContract[] = [];
-    
-    if (wizardData['token-design']) {
-      newContracts.push({
-        id: `token-${Date.now()}`,
-        templateId: 'token-template-1',
-        name: wizardData['token-design'] || 'DAO Token',
-        type: 'token',
-        description: 'Governance token created via wizard',
-        isDeployed: false,
-        configuration: {
-          name: wizardData['token-design'],
-          symbol: wizardData['token-design'].substring(0, 4).toUpperCase(),
-          decimals: '18',
-          initialSupply: '1000000'
+      
+      // Still allow recording even if playback fails
+      setTimeout(() => {
+        if (!isRecording) {
+          startRecording();
         }
-      });
+      }, 500);
     }
+  };
+
+  // Add a node to the canvas based on the workflow step
+  const addNodeBasedOnStep = (stepId: string, userResponse: string) => {
+    // Create node template based on the step type
+    const nodeTemplate = getNodeTemplateForStep(stepId, userResponse);
     
-    if (wizardData['governance-settings']) {
-      newContracts.push({
-        id: `governance-${Date.now()}`,
-        templateId: 'gov-template-1',
-        name: 'Governance Contract',
-        type: 'governance',
-        description: 'Governance contract created via wizard',
+    if (nodeTemplate && nodeEditorRef.current) {
+      console.log(`Adding ${nodeTemplate.type} node to canvas based on user response`);
+      
+      // Use the NodeEditor ref to add the node to the canvas
+      nodeEditorRef.current.addNodeToCanvas(nodeTemplate);
+      
+      // Also add to active contracts array for the contract list
+      setActiveContracts(prev => [...prev, {
+        id: `node-${Date.now()}`,
+        templateId: nodeTemplate.templateId,
+        name: nodeTemplate.name,
+        type: nodeTemplate.type,
+        description: nodeTemplate.description,
         isDeployed: false,
-        configuration: {
-          votingPeriod: '3 days',
-          quorum: '20%',
-          proposalThreshold: '1%'
+        configuration: nodeTemplate.configuration
+      }]);
+      
+      // Track that a node was created for this step
+      setCreatedNodes(prev => ({ ...prev, [stepId]: true }));
+      
+      // Show brief notification
+      setNodeCreationFeedback(`${nodeTemplate.name} created`);
+      setTimeout(() => setNodeCreationFeedback(null), 3000);
+      
+      console.log(`Node added: ${nodeTemplate.name}`);
+    }
+  };
+
+  // Get node template based on workflow step
+  const getNodeTemplateForStep = (stepId: string, userResponse: string): any => {
+    switch(stepId) {
+      case 'project-context':
+        // The project context doesn't create a node directly
+        return null;
+        
+      case 'token-design': 
+        // Create a token node based on user response
+        return {
+          templateId: 'token-template-1',
+          name: userResponse || 'DAO Token',
+          type: 'token' as ContractType,
+          description: 'Governance token for the DAO',
+          configuration: {
+            name: userResponse,
+            symbol: userResponse.split(' ')[0].substring(0, 4).toUpperCase(),
+            decimals: '18',
+            initialSupply: '1000000'
+          }
+        };
+        
+      case 'roles-permissions':
+        // Create a delegation node based on user response
+        return {
+          templateId: 'delegation-template-1',
+          name: 'Delegation Contract',
+          type: 'delegation' as ContractType,
+          description: 'Manage roles and delegation of voting power',
+          configuration: {
+            roles: userResponse
+          }
+        };
+        
+      case 'voting-mechanics':
+        // Create a governance node based on user response
+        return {
+          templateId: 'gov-template-1',
+          name: 'Governance Contract',
+          type: 'governance' as ContractType,
+          description: 'Voting and proposal system',
+          configuration: {
+            votingPeriod: userResponse.includes('day') ? '3 days' : '1 week',
+            quorum: userResponse.includes('20') ? '20%' : '10%',
+            proposalThreshold: '1%'
+          }
+        };
+        
+      case 'treasury-management':
+        // Create a treasury node based on user response
+        return {
+          templateId: 'treasury-template-1',
+          name: 'Treasury Contract',
+          type: 'treasury' as ContractType,
+          description: 'Manage DAO funds with multi-sig requirements',
+          configuration: {
+            multiSig: userResponse.includes('Multi-signature') || userResponse.includes('multiple'),
+            threshold: userResponse.includes('2') ? 2 : 1
+          }
+        };
+        
+      case 'proposal-rules':
+        // This doesn't create a new node but updates the governance node configuration
+        // Update the most recently added governance contract if it exists
+        const govContract = activeContracts.find(c => c.type === 'governance');
+        if (govContract) {
+          setActiveContracts(prev => 
+            prev.map(c => 
+              c.id === govContract.id 
+                ? {...c, configuration: {...c.configuration, proposalRules: userResponse}}
+                : c
+            )
+          );
         }
-      });
-    }
-    
-    setActiveContracts(prev => [...prev, ...newContracts]);
-  };
-
-  const getContractTypeColor = (type: ContractType) => {
-    switch (type) {
-      case 'governance':
-        return 'bg-primary';
-      case 'token':
-        return 'bg-primary';
-      case 'vesting':
-        return 'bg-primary';
-      case 'delegation':
-        return 'bg-primary';
-      case 'ai':
-        return 'bg-primary';
-      case 'treasury':
-        return 'bg-primary';
-      default:
-        return 'bg-neutral';
-    }
-  };
-
-  const getContractTypeIcon = (type: ContractType) => {
-    switch (type) {
-      case 'governance':
-        return <Shield size={20} className="text-primary" />;
-      case 'token':
-        return <Coins size={20} className="text-primary" />;
-      case 'vesting':
-        return <Clock size={20} className="text-primary" />;
-      case 'delegation':
-        return <Users size={20} className="text-primary" />;
-      case 'ai':
-        return <Bot size={20} className="text-primary" />;
-      case 'treasury':
-        return <Wallet size={20} className="text-primary" />;
+        return null;
+        
       default:
         return null;
     }
@@ -656,7 +847,10 @@ const Governance: React.FC<GovernanceProps> = () => {
 
   // Toggle the governance wizard
   const handleShowWizard = () => {
+    // Simply toggle the wizard mode without any automatic voice or message creation
     setWizardMode(wizardMode === 'hidden' ? 'sidebar' : 'hidden');
+    
+    // No automatic voice playback or welcome message to prevent crashes
   };
 
   // Generate contract code based on collected wizard data
@@ -800,6 +994,145 @@ async function deployDAO() {
     }
   };
 
+  // Get contract type color
+  const getContractTypeColor = (type: ContractType) => {
+    switch (type) {
+      case 'governance':
+        return 'bg-primary';
+      case 'token':
+        return 'bg-emerald-500';
+      case 'vesting':
+        return 'bg-pink-500';
+      case 'delegation':
+        return 'bg-violet-500';
+      case 'ai':
+        return 'bg-amber-500';
+      case 'treasury':
+        return 'bg-yellow-500';
+      default:
+        return 'bg-neutral';
+    }
+  };
+  
+  // Get contract type icon
+  const getContractTypeIcon = (type: ContractType) => {
+    switch (type) {
+      case 'governance':
+        return <Shield size={20} className="text-primary" />;
+      case 'token':
+        return <Coins size={20} className="text-emerald-500" />;
+      case 'vesting':
+        return <Clock size={20} className="text-pink-500" />;
+      case 'delegation':
+        return <Users size={20} className="text-violet-500" />;
+      case 'ai':
+        return <Bot size={20} className="text-amber-500" />;
+      case 'treasury':
+        return <Wallet size={20} className="text-yellow-500" />;
+      default:
+        return null;
+    }
+  };
+
+  // When switching to the rightmost panel, remove any duplicate chat boxes
+  useEffect(() => {
+    if (wizardMode === 'sidebar') {
+      // Remove any duplicate chat UI that might be in the right panel
+      const rightPanelChatElements = document.querySelectorAll('.right-panel .chat-container');
+      rightPanelChatElements.forEach(el => {
+        if (el.parentNode) {
+          el.parentNode.removeChild(el);
+        }
+      });
+    }
+  }, [wizardMode]);
+
+  // Add direct script injection to force remove problematic elements
+  useEffect(() => {
+    // Create script element
+    const script = document.createElement('script');
+    script.innerHTML = `
+      // Run immediately
+      (function() {
+        // Force remove any elements with 'Listening:' text content
+        function forceRemove() {
+          try {
+            // Get all elements in the document
+            var allElements = document.querySelectorAll('*');
+            
+            // Check each element
+            for (var i = 0; i < allElements.length; i++) {
+              var el = allElements[i];
+              
+              // Check if the element contains "Listening:" text
+              if (el && el.textContent && el.textContent.includes('Listening:')) {
+                // Get the element and its parent elements
+                var element = el;
+                var depth = 0;
+                
+                // Go up the DOM tree to find an appropriate container to remove
+                while (element && depth < 10) {
+                  if (element.classList && (
+                      element.classList.contains('mb-3') || 
+                      element.classList.contains('p-2') ||
+                      element.classList.contains('bg-neutral-dark') ||
+                      element.classList.contains('rounded-md'))) {
+                    // Remove this element if it has a parent
+                    if (element.parentNode) {
+                      element.parentNode.removeChild(element);
+                    }
+                    break;
+                  }
+                  
+                  // Check if this element is between Treasury Management and Voice Commands
+                  if (element.previousElementSibling && 
+                      element.nextElementSibling &&
+                      element.previousElementSibling.textContent && 
+                      element.nextElementSibling.textContent &&
+                      element.previousElementSibling.textContent.includes('Treasury Management') &&
+                      element.nextElementSibling.textContent.includes('Voice Commands')) {
+                    // This is our target - remove it if it has a parent
+                    if (element.parentNode) {
+                      element.parentNode.removeChild(element);
+                    }
+                    break;
+                  }
+                  
+                  element = element.parentNode;
+                  depth++;
+                }
+              }
+            }
+          } catch (err) {
+            // Silently catch any errors to prevent crashing
+            console.debug('Error in listener element cleanup:', err);
+          }
+        }
+        
+        // Run the removal function
+        forceRemove();
+        
+        // Set up interval to keep checking
+        const intervalId = setInterval(forceRemove, 500);
+        
+        // Clean up the interval when the page unloads
+        window.addEventListener('beforeunload', function() {
+          clearInterval(intervalId);
+        });
+      })();
+    `;
+    
+    // Append script to document
+    document.head.appendChild(script);
+    
+    // Cleanup
+    return () => {
+      if (document.head.contains(script)) {
+        document.head.removeChild(script);
+      }
+    };
+  }, []);
+
   return (
     <div className="container py-xl">
       {/* Header */}
@@ -855,6 +1188,7 @@ async function deployDAO() {
         <div className={`${wizardMode !== 'hidden' ? 'w-3/4' : 'w-full'} transition-all duration-300`}>
           <div className="border border-neutral-light/10 rounded-lg overflow-hidden h-[550px]">
             <NodeEditor 
+              ref={nodeEditorRef}
               onSave={(nodes, connections) => {
                 console.log('Flow saved:', { nodes, connections });
                 // Here you could extract contract configuration from nodes
@@ -927,7 +1261,9 @@ async function deployDAO() {
                         id="step-token-design"
                         className={`flex items-center p-2 rounded-md cursor-pointer transition-all duration-300 ${
                           wizardData['token-design-completed'] 
-                            ? 'bg-primary/20' 
+                            ? createdNodes['token-design'] 
+                              ? 'bg-green-500/20' 
+                              : 'bg-primary/20' 
                             : isRecording && wizardData['token-design-started'] && !wizardData['token-design-completed'] 
                               ? 'bg-red-500/20 step-active' 
                               : isPlaying && currentPlayingMessageId?.includes('token-design') 
@@ -941,7 +1277,11 @@ async function deployDAO() {
                       >
                         <div className="mr-2">
                           {wizardData['token-design-completed'] ? (
-                            <CheckCircle size={16} className="text-green-400" />
+                            createdNodes['token-design'] ? (
+                              <Coins size={16} className="text-green-400" />
+                            ) : (
+                              <CheckCircle size={16} className="text-green-400" />
+                            )
                           ) : isRecording && wizardData['token-design-started'] && !wizardData['token-design-completed'] ? (
                             <Mic size={16} className="text-red-500 animate-pulse" />
                           ) : isPlaying && currentPlayingMessageId?.includes('token-design') ? (
@@ -1079,21 +1419,35 @@ async function deployDAO() {
                     </div>
                   </div>
                   
+                  {/* Replace the problematic element with an empty div that has explicit styling to stay hidden */}
+                  <div style={{ 
+                    display: 'none', 
+                    height: '0px', 
+                    margin: '0px', 
+                    padding: '0px', 
+                    overflow: 'hidden',
+                    opacity: 0,
+                    visibility: 'hidden',
+                    position: 'absolute',
+                    zIndex: -9999,
+                    pointerEvents: 'none'
+                  }} aria-hidden="true" id="blocking-element"></div>
+                  
                   {/* Middle panel - Voice Status Indicator */}
                   {(isPlaying || isRecording) && (
                     <div className="mb-3 p-2 bg-neutral-dark rounded-md border border-neutral-light/10">
                       <div className="flex items-center text-sm">
                         {isPlaying && (
-                          <>
-                            <Volume2 size={16} className="text-primary animate-pulse mr-2" />
-                            <span className="text-white">AI speaking...</span>
-                          </>
+                          <div className="flex items-center bg-primary/10 text-primary rounded-full px-3 py-1">
+                            <Volume2 size={14} className="animate-pulse mr-2" />
+                            <span>AI speaking...</span>
+                          </div>
                         )}
                         {isRecording && (
-                          <>
-                            <Mic size={16} className="text-red-500 animate-pulse mr-2" />
-                            <span className="text-white">Listening: {userResponse || "..."}</span>
-                          </>
+                          <div className="flex items-center bg-red-500/10 text-red-500 rounded-full px-3 py-1">
+                            <Mic size={14} className="animate-pulse mr-2" />
+                            <span>Listening: {userResponse.substring(0, 20)}{userResponse.length > 20 ? '...' : ''}</span>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -1119,7 +1473,7 @@ async function deployDAO() {
                 <div className="mt-4 flex flex-col space-y-2">
                   <button 
                     className="flex items-center justify-center p-2 rounded-md bg-primary/10 hover:bg-primary/20 text-primary text-sm"
-                    onClick={() => setWizardMode(wizardMode === 'hidden' ? 'sidebar' : 'hidden')}
+                    onClick={handleShowWizard}
                   >
                     <Command size={14} className="mr-2" />
                     Voice Commands
@@ -1141,96 +1495,126 @@ async function deployDAO() {
         )}
       </div>
       
-      {/* Chat area below the canvas - Only visible when wizard is active */}
-      {wizardMode !== 'hidden' && (
-        <div className="mb-6 border border-neutral-light/10 rounded-lg bg-neutral-dark overflow-hidden flex flex-col chat-area">
-          <div className="p-3 border-b border-neutral-light/10 flex justify-between items-center">
-            <h3 className="text-white font-medium flex items-center">
-              <Bot size={16} className="text-primary mr-2" />
-              AI Assistant
-            </h3>
-            <div className="flex items-center space-x-2">
-              <button 
-                className="text-xs bg-neutral/50 hover:bg-neutral px-2 py-1 rounded text-neutral-light"
-                id="show-code-btn"
-                onClick={() => {
-                  // Toggle code preview modal
-                  const codeModal = document.getElementById('code-preview-modal');
-                  if (codeModal) {
-                    codeModal.style.display = codeModal.style.display === 'none' ? 'flex' : 'none';
-                  }
-                }}
-              >
-                <FileCode size={14} className="mr-1 inline-block" />
-                View Generated Code
-              </button>
-            </div>
-          </div>
-          
-          {/* Chat messages area */}
-          <div className="flex-1 overflow-y-auto p-3 space-y-2 max-h-[250px]">
-            <ChatInterface
-              messages={chatMessages}
-              currentPlayingMessageId={currentPlayingMessageId}
-              isRecording={isRecording}
-              onPlayMessage={(messageId) => {
-                const message = chatMessages.find(m => m.id === messageId);
-                if (message && message.role === 'ai') {
-                  playVoiceMessage(messageId, message.content);
+      {/* Chat area below the canvas - ALWAYS visible */}
+      <div className="mb-6 border border-neutral-light/10 rounded-lg bg-neutral-dark overflow-hidden flex flex-col chat-area">
+        <div className="p-3 border-b border-neutral-light/10 flex justify-between items-center">
+          <h3 className="text-white font-medium flex items-center">
+            <Bot size={16} className="text-primary mr-2" />
+            AI Assistant
+          </h3>
+          <div className="flex items-center space-x-2">
+            <button 
+              className="text-xs bg-neutral/50 hover:bg-neutral px-2 py-1 rounded text-neutral-light"
+              id="show-code-btn"
+              onClick={() => {
+                // Toggle code preview modal
+                const codeModal = document.getElementById('code-preview-modal');
+                if (codeModal) {
+                  codeModal.style.display = codeModal.style.display === 'none' ? 'flex' : 'none';
                 }
               }}
-            />
-          </div>
-          
-          {/* Input area */}
-          <div className="p-3 border-t border-neutral-light/10">
-            <form className="flex items-center" onSubmit={(e) => {
-              e.preventDefault();
-              const input = document.getElementById('chat-input') as HTMLInputElement;
-              if (input && input.value.trim()) {
-                processUserResponse(input.value);
-                input.value = '';
-              }
-            }}>
-              <input
-                id="chat-input"
-                type="text"
-                className={`flex-1 bg-neutral-dark border border-neutral-light/20 rounded-l-md p-2 text-white text-sm ${isRecording ? 'border-red-500 bg-red-500/5 animate-pulse' : ''}`}
-                placeholder={isRecording ? "Listening..." : "Type your response..."}
-                value={userResponse}
-                onChange={(e) => setUserResponse(e.target.value)}
-                disabled={isPlaying}
-              />
-              <div className="flex bg-neutral-dark border border-l-0 border-neutral-light/20 rounded-r-md">
-                <button
-                  type="button"
-                  className={`p-2 ${isRecording ? 'text-red-500 animate-pulse' : 'text-primary/60 hover:text-primary'}`}
-                  onClick={isRecording ? stopRecording : startRecording}
-                  disabled={isPlaying}
-                  title={isRecording ? 'Stop recording' : 'Start recording'}
-                >
-                  <Mic size={18} />
-                </button>
-                <button
-                  type="submit"
-                  className="bg-primary text-white p-2 rounded-r-md hover:bg-primary-dark"
-                  disabled={isPlaying || !userResponse.trim()}
-                >
-                  <ArrowRight size={18} />
-                </button>
-              </div>
-            </form>
+            >
+              <FileCode size={14} className="mr-1 inline-block" />
+              View Generated Code
+            </button>
             
-            {/* Voice status indicator */}
-            {isPlaying && (
-              <div className="mt-2 flex items-center text-xs">
-                <Volume2 size={14} className="text-primary animate-pulse mr-2" />
-                <span className="text-neutral-light">AI speaking...</span>
-              </div>
-            )}
+            {/* Add a button to add a welcome message manually */}
+            <button 
+              className="text-xs bg-primary/20 hover:bg-primary/30 px-2 py-1 rounded text-primary"
+              onClick={() => {
+                const welcomeMessage = {
+                  id: `ai-welcome-${Date.now()}`,
+                  role: 'ai' as 'ai', 
+                  content: `# Welcome to the DAO Configuration Wizard! 👋\n\nI'll guide you through setting up your DAO step by step.\n\n**How it works:**\n\n1. Click on any configuration step in the right sidebar when wizard is open\n2. Answer questions about your DAO configuration\n3. Your answers will create smart contract nodes in the builder\n\nYou can also directly chat with me below to configure your DAO!`
+                };
+                
+                setChatMessages([welcomeMessage]);
+              }}
+            >
+              <Bot size={14} className="mr-1 inline-block" />
+              Start Chat
+            </button>
           </div>
         </div>
-      )}
+        
+        {/* Voice status indicator */}
+        {(isPlaying || isRecording) && (
+          <div className="p-2 bg-neutral-dark border-b border-neutral-light/10">
+            <div className="flex items-center text-sm">
+              {isPlaying && (
+                <div className="flex items-center bg-primary/10 text-primary rounded-full px-3 py-1">
+                  <Volume2 size={14} className="animate-pulse mr-2" />
+                  <span>AI speaking...</span>
+                </div>
+              )}
+              {isRecording && (
+                <div className="flex items-center bg-red-500/10 text-red-500 rounded-full px-3 py-1">
+                  <Mic size={14} className="animate-pulse mr-2" />
+                  <span>Listening: {userResponse.substring(0, 20)}{userResponse.length > 20 ? '...' : ''}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        
+        {/* Integrated chat interface */}
+        <div className="flex-1 overflow-hidden">
+          <ChatInterface
+            messages={chatMessages}
+            currentPlayingMessageId={currentPlayingMessageId}
+            isRecording={isRecording}
+            onPlayMessage={(messageId) => {
+              const message = chatMessages.find(m => m.id === messageId);
+              if (message && message.role === 'ai') {
+                playVoiceMessage(messageId, message.content);
+              }
+            }}
+            onSubmitResponse={(response) => {
+              if (response.trim()) {
+                processUserResponse(response);
+              }
+            }}
+          />
+        </div>
+        
+        {/* Input area */}
+        <div className="p-3 border-t border-neutral-light/10">
+          <form className="flex items-center" onSubmit={(e) => {
+            e.preventDefault();
+            const input = document.getElementById('chat-input') as HTMLInputElement;
+            if (input && input.value.trim()) {
+              processUserResponse(input.value);
+              input.value = '';
+            }
+          }}>
+            <input
+              id="chat-input"
+              type="text"
+              className={`flex-1 bg-neutral-dark border border-neutral-light/20 rounded-l-md p-2 text-white text-sm ${isRecording ? 'border-red-500 bg-red-500/5 animate-pulse' : ''}`}
+              placeholder={isRecording ? "Listening..." : "Type your response..."}
+              disabled={isPlaying}
+            />
+            <div className="flex bg-neutral-dark border border-l-0 border-neutral-light/20 rounded-r-md">
+              <button
+                type="button"
+                className={`p-2 ${isRecording ? 'text-red-500 animate-pulse' : 'text-primary/60 hover:text-primary'}`}
+                onClick={isRecording ? stopRecording : startRecording}
+                disabled={isPlaying}
+                title={isRecording ? 'Stop recording' : 'Start recording'}
+              >
+                <Mic size={18} />
+              </button>
+              <button
+                type="submit"
+                className="bg-primary text-white p-2 rounded-r-md hover:bg-primary-dark"
+                disabled={isPlaying || !userResponse.trim()}
+              >
+                <ArrowRight size={18} />
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
       
       {/* Code Preview Modal */}
       <div 
@@ -1323,6 +1707,7 @@ async function deployDAO() {
       </div>
 
       <h2 className="text-h2 mb-md">Active Contracts</h2>
+      
       <div className="space-y-sm mb-xl">
         {activeContracts.map(contract => (
           <div 
@@ -1432,6 +1817,13 @@ async function deployDAO() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Node creation feedback toast */}
+      {nodeCreationFeedback && (
+        <div className="fixed top-20 right-5 bg-green-500 text-white py-2 px-4 rounded shadow-lg animate-fade-in-out">
+          ✅ {nodeCreationFeedback}
         </div>
       )}
     </div>
