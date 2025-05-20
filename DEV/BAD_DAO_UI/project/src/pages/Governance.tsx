@@ -24,6 +24,7 @@ import NodeEditor from '../components/governance/NodeEditor';
 import GovernanceWizard from '../components/governance/GovernanceWizard';
 import elevenlabsService from '../services/elevenlabsService';
 import ChatInterface from '../components/governance/ChatInterface';
+import { createLogger } from '../utils/logger';
 
 // Define the ChatMessage interface to match the one in GovernanceWizard
 interface ChatMessage {
@@ -61,7 +62,13 @@ interface GovernanceProps {
   // ... existing code ...
 }
 
+// Create a component-specific logger
+const logger = createLogger('GOVERNANCE');
+
 const Governance: React.FC<GovernanceProps> = () => {
+  // Log component initialization
+  logger.debug('🏗️', 'Governance component initializing');
+  
   const navigate = useNavigate();
   const { daoId } = useParams<{ daoId: string }>();
   const [isAddingContract, setIsAddingContract] = useState(false);
@@ -97,6 +104,9 @@ const Governance: React.FC<GovernanceProps> = () => {
   
   // Add missing currentWorkflowStep state
   const [currentWorkflowStep, setCurrentWorkflowStep] = useState<string>('');
+
+  // Add a state variable to control the node help visibility
+  const [showNodeHelp, setShowNodeHelp] = useState<boolean>(false);
 
   // Contract templates for the add contract modal
   const contractTemplates: ContractTemplate[] = [
@@ -147,21 +157,41 @@ const Governance: React.FC<GovernanceProps> = () => {
   // Add a ref for the NodeEditor
   const nodeEditorRef = useRef<any>(null);
 
+  // Add these state variables to manage UI indicators properly
+  const [showListeningIndicator, setShowListeningIndicator] = useState<boolean>(false);
+  const [speechTranscript, setSpeechTranscript] = useState<string>('');
+
+  // Replace the code preview modal code with React state approach
+  const [showCodePreview, setShowCodePreview] = useState<boolean>(false);
+
+  // Add state for the ElevenLabs settings modal
+  const [showElevenLabsSettings, setShowElevenLabsSettings] = useState<boolean>(false);
+  const [elevenlabsApiKey, setElevenlabsApiKey] = useState<string>(localStorage.getItem('elevenlabsApiKey') || '');
+  const [elevenlabsVoiceId, setElevenlabsVoiceId] = useState<string>(localStorage.getItem('elevenlabsVoiceId') || '');
+  const [isTestingVoice, setIsTestingVoice] = useState<boolean>(false);
+  const [voices, setVoices] = useState<any[]>([]);
+  const [isLoadingVoices, setIsLoadingVoices] = useState<boolean>(false);
+
   useEffect(() => {
     // Fetch active contracts
+    logger.info('🔄', 'Fetching contracts for DAO', { daoId });
     fetchContracts();
   }, [daoId]);
 
   useEffect(() => {
     // Listen for URL changes to determine if we should show the wizard
+    logger.debug('🧭', 'Checking URL for wizard path');
     if (window.location.pathname.includes('/wizard')) {
+      logger.info('🧙', 'Showing wizard sidebar based on URL path');
       setWizardMode('sidebar');
     }
   }, [window.location.pathname]);
 
   const fetchContracts = async () => {
     try {
+      logger.timeStart('Fetch Contracts');
       // Mock data - in a real app, this would be fetched from your API
+      logger.debug('🔍', 'Using mock contract data');
       const mockContracts: ActiveContract[] = [
         {
           id: 'contract-1',
@@ -181,39 +211,46 @@ const Governance: React.FC<GovernanceProps> = () => {
       ];
       
       setActiveContracts(mockContracts);
+      logger.success('✅', 'Contracts loaded successfully', { count: mockContracts.length });
+      logger.timeEnd('Fetch Contracts');
     } catch (error) {
-      console.error('Error fetching contracts:', error);
+      logger.error('❌', 'Error fetching contracts:', error);
       // Handle error state
     }
   };
 
   const handleAddContract = (type: ContractType) => {
     // Implementation would add a contract to active contracts
-    console.log('Adding contract of type:', type);
+    logger.info('📝', 'Adding contract of type:', type);
     setIsAddingContract(false);
   };
 
   const handleRemoveContract = (contractId: string) => {
     // Implementation would remove a contract
-    console.log('Removing contract:', contractId);
+    logger.info('🗑️', 'Removing contract:', contractId);
     setActiveContracts(prev => prev.filter(c => c.id !== contractId));
   };
 
   const handleEditContract = (contractId: string) => {
     // Implementation would open the contract editor
-    console.log('Editing contract:', contractId);
+    logger.info('✏️', 'Editing contract:', contractId);
   };
 
   const handleDeployContract = (contractId: string) => {
     // Implementation would deploy a contract
-    console.log('Deploying contract:', contractId);
+    logger.info('🚀', 'Deploying contract:', contractId);
+    logger.debug('🔍', 'Contract deployment flow starting');
     
     // Update the contract to show it's deployed
-    setActiveContracts(prev => prev.map(c => 
-      c.id === contractId 
-        ? { ...c, deployedAddress: '0x' + Math.random().toString(16).substring(2, 14) } 
-        : c
-    ));
+    setActiveContracts(prev => {
+      const updated = prev.map(c => 
+        c.id === contractId 
+          ? { ...c, deployedAddress: '0x' + Math.random().toString(16).substring(2, 14) } 
+          : c
+      );
+      logger.success('✅', 'Contract marked as deployed', { contractId });
+      return updated;
+    });
   };
 
   const handleDragStart = (contractId: string) => {
@@ -246,7 +283,9 @@ const Governance: React.FC<GovernanceProps> = () => {
   // Setup speech recognition
   useEffect(() => {
     // Initialize Web Speech API if available
+    logger.debug('🎤', 'Setting up speech recognition');
     if ('webkitSpeechRecognition' in window) {
+      // Use type assertion for the SpeechRecognition constructor
       const SpeechRecognition = window.webkitSpeechRecognition as any;
       recognitionRef.current = new SpeechRecognition();
       recognitionRef.current.continuous = true;
@@ -254,20 +293,20 @@ const Governance: React.FC<GovernanceProps> = () => {
       
       recognitionRef.current.onresult = (event: any) => {
         // Don't process results if AI is currently speaking
-        if (isPlaying) return;
+        if (isPlaying) {
+          logger.debug('🎤', 'Ignoring speech result while AI is speaking');
+          return;
+        }
         
         const transcript = Array.from(event.results)
           .map((result: any) => result[0].transcript)
           .join('');
         
-        // Update the userResponse state and chat input field
-        setUserResponse(transcript);
+        logger.voice('👂', 'Speech recognition result', { transcript });
         
-        // Also update the input field directly for immediate feedback
-        const chatInput = document.getElementById('chat-input') as HTMLInputElement;
-        if (chatInput) {
-          chatInput.value = transcript;
-        }
+        // Update the userResponse state and the speech transcript for display
+        setUserResponse(transcript);
+        setSpeechTranscript(transcript);
         
         // Reset the silence timer
         if (silenceTimerRef.current) {
@@ -277,6 +316,7 @@ const Governance: React.FC<GovernanceProps> = () => {
         // Set a new silence timer to automatically submit after pause
         silenceTimerRef.current = setTimeout(() => {
           if (isRecording && transcript.trim() !== '') {
+            logger.voice('⏱️', 'Silence timer triggered, processing speech input');
             stopRecording();
             processUserResponse(transcript);
           }
@@ -284,16 +324,22 @@ const Governance: React.FC<GovernanceProps> = () => {
       };
       
       recognitionRef.current.onend = () => {
+        logger.voice('🛑', 'Speech recognition ended');
         setIsRecording(false);
+        setShowListeningIndicator(false);
       };
       
       recognitionRef.current.onerror = (event: any) => {
-        console.error('Speech recognition error', event.error);
+        logger.error('❌', 'Speech recognition error', event.error);
         setIsRecording(false);
+        setShowListeningIndicator(false);
       };
+    } else {
+      logger.warn('⚠️', 'Speech recognition not supported in this browser');
     }
     
     return () => {
+      logger.debug('🧹', 'Cleaning up speech recognition');
       if (recognitionRef.current) {
         recognitionRef.current.abort();
       }
@@ -301,61 +347,86 @@ const Governance: React.FC<GovernanceProps> = () => {
         clearTimeout(silenceTimerRef.current);
       }
     };
-  }, [isPlaying]); // Add isPlaying as a dependency to react to AI speaking state changes
+  }, [isPlaying]);
 
   // Start recording function
   const startRecording = () => {
-    if (!recognitionRef.current) return;
+    logger.group('Speech Recognition');
+    logger.voice('🎙️', 'Starting speech recognition');
+    
+    if (!recognitionRef.current) {
+      logger.error('❌', 'Speech recognition not initialized');
+      logger.groupEnd();
+      return;
+    }
     
     // Don't start recording if audio is playing
     if (isPlaying) {
-      console.log('Cannot start recording while audio is playing');
+      logger.warn('⚠️', 'Cannot start recording while audio is playing');
+      logger.groupEnd();
       return;
     }
     
     try {
       // Clear any previous user response
       setUserResponse('');
+      setSpeechTranscript('');
       
-      // Also clear the input field
-      const chatInput = document.getElementById('chat-input') as HTMLInputElement;
-      if (chatInput) {
-        chatInput.value = '';
-        chatInput.placeholder = 'Listening...';
-        chatInput.classList.add('listening');
-      }
+      // Use React state instead of direct DOM manipulation
+      setShowListeningIndicator(true);
       
       setIsRecording(true);
       recognitionRef.current.start();
-      console.log('Speech recognition started');
+      logger.voice('✅', 'Speech recognition started');
+      logger.groupEnd();
     } catch (error) {
-      console.error('Error starting speech recognition:', error);
+      logger.error('❌', 'Error starting speech recognition:', error);
+      setIsRecording(false);
+      setShowListeningIndicator(false);
+      logger.groupEnd();
     }
   };
 
   // Stop recording function
   const stopRecording = () => {
-    if (!recognitionRef.current) return;
+    logger.voice('🎙️', 'Stopping speech recognition');
+    
+    if (!recognitionRef.current) {
+      logger.error('❌', 'Speech recognition not initialized');
+      return;
+    }
     
     try {
       recognitionRef.current.stop();
       setIsRecording(false);
-      console.log('Speech recognition stopped');
-      
-      // Reset input field appearance
-      const chatInput = document.getElementById('chat-input') as HTMLInputElement;
-      if (chatInput) {
-        chatInput.placeholder = 'Type your response...';
-        chatInput.classList.remove('listening');
-      }
+      setShowListeningIndicator(false);
+      logger.voice('✅', 'Speech recognition stopped');
       
       if (silenceTimerRef.current) {
         clearTimeout(silenceTimerRef.current);
         silenceTimerRef.current = null;
       }
     } catch (error) {
-      console.error('Error stopping speech recognition:', error);
+      logger.error('❌', 'Error stopping speech recognition:', error);
+      setIsRecording(false);
+      setShowListeningIndicator(false);
     }
+  };
+
+  // Node command patterns for voice recognition
+  const NODE_VOICE_COMMANDS = {
+    ADD: [
+      /add(?:\s+a)?(?:\s+new)?(?:\s+node)?(?:\s+called|named)?\s+(\w+)(?:\s+of\s+type|type)?\s+(\w+)/i,
+      /create(?:\s+a)?(?:\s+new)?(?:\s+node)?(?:\s+called|named)?\s+(\w+)(?:\s+of\s+type|type)?\s+(\w+)/i
+    ],
+    CONNECT: [
+      /connect(?:\s+node)?\s+(\w+)(?:\s+to)?\s+(\w+)/i,
+      /link(?:\s+node)?\s+(\w+)(?:\s+to)?\s+(\w+)/i
+    ],
+    REMOVE: [
+      /remove(?:\s+node)?\s+(\w+)/i,
+      /delete(?:\s+node)?\s+(\w+)/i
+    ]
   };
 
   // Process user response after speech recognition
@@ -381,6 +452,39 @@ const Governance: React.FC<GovernanceProps> = () => {
     // Add user message to chat
     setChatMessages(prev => [...prev, userMessage]);
     
+    // Check for node voice commands
+    const trimmedResponse = response.trim().toLowerCase();
+    
+    // Check for add node commands
+    for (const pattern of NODE_VOICE_COMMANDS.ADD) {
+      const match = trimmedResponse.match(pattern);
+      if (match) {
+        const [_, nodeName, nodeType = 'token'] = match;
+        processAddNodeVoiceCommand(nodeName, nodeType);
+        return;
+      }
+    }
+    
+    // Check for connect node commands
+    for (const pattern of NODE_VOICE_COMMANDS.CONNECT) {
+      const match = trimmedResponse.match(pattern);
+      if (match) {
+        const [_, sourceNode, targetNode] = match;
+        processConnectNodesVoiceCommand(sourceNode, targetNode);
+        return;
+      }
+    }
+    
+    // Check for remove node commands
+    for (const pattern of NODE_VOICE_COMMANDS.REMOVE) {
+      const match = trimmedResponse.match(pattern);
+      if (match) {
+        const [_, nodeName] = match;
+        processRemoveNodeVoiceCommand(nodeName);
+        return;
+      }
+    }
+    
     // Handle "I don't know" responses with multiple choice options
     if (response.toLowerCase().includes("i don't know") || response.toLowerCase().includes("don't know") || response.toLowerCase().includes("not sure")) {
       let currentStep = '';
@@ -405,6 +509,35 @@ const Governance: React.FC<GovernanceProps> = () => {
         playVoiceMessage(suggestedMessage.id, suggestedMessage.content);
         return;
       }
+    }
+    
+    // Check if user asked for help with node management
+    if (
+      trimmedResponse.includes('how to add node') || 
+      trimmedResponse.includes('how to create node') ||
+      trimmedResponse.includes('node commands') ||
+      trimmedResponse.includes('node help')
+    ) {
+      const helpMessage = {
+        id: `ai-node-help-${Date.now()}`,
+        role: 'ai' as 'ai',
+        content: "Here's how you can manage nodes:\n\n" +
+          "**Voice Commands:**\n" +
+          "- \"Add a token node called MyToken\"\n" +
+          "- \"Create a governance node named Council\"\n" +
+          "- \"Connect Token to Treasury\"\n" +
+          "- \"Remove the Vesting node\"\n\n" +
+          "**Text Commands:**\n" +
+          "- `/add token MyToken`\n" +
+          "- `/connect token-123 treasury-456`\n" +
+          "- `/remove token-123`\n" +
+          "- `/list` (to see all nodes)\n\n" +
+          "You can also use the + button on the canvas to add nodes directly."
+      };
+      
+      setChatMessages(prev => [...prev, helpMessage]);
+      playVoiceMessage(helpMessage.id, helpMessage.content);
+      return;
     }
     
     // Check if response is a number choice (1, 2, 3)
@@ -444,6 +577,157 @@ const Governance: React.FC<GovernanceProps> = () => {
     if (currentStep) {
       handleStepCompletion(currentStep, response);
     }
+  };
+  
+  // Process add node voice command
+  const processAddNodeVoiceCommand = (nodeName: string, nodeType: string) => {
+    logger.group('Node Management');
+    logger.ui('🎮', 'Processing add node voice command', { nodeName, nodeType });
+    
+    if (!nodeEditorRef.current) {
+      logger.error('❌', 'Node editor reference not available');
+      const errorMsg = {
+        id: `ai-error-${Date.now()}`,
+        role: 'ai' as 'ai',
+        content: "I can't add a node right now because the node editor isn't ready. Please try again in a moment."
+      };
+      setChatMessages(prev => [...prev, errorMsg]);
+      logger.groupEnd();
+      return;
+    }
+    
+    // Create node data
+    const nodeData = {
+      name: nodeName,
+      type: nodeType.toLowerCase(),
+      ...(nodeType.toLowerCase() === 'token' && {
+        symbol: nodeName.substring(0, 4).toUpperCase(),
+        decimals: '18',
+        supply: '1000000'
+      })
+    };
+    
+    logger.debug('📦', 'Node data prepared', nodeData);
+    
+    // Add node to canvas
+    try {
+      logger.ui('➕', 'Adding node to canvas');
+      const nodeId = nodeEditorRef.current.addNodeToCanvas(nodeData);
+      logger.success('✅', 'Node added successfully', { nodeId });
+      
+      // Send confirmation message
+      const confirmMsg = {
+        id: `ai-node-${Date.now()}`,
+        role: 'ai' as 'ai',
+        content: `I've added a ${nodeType} node named "${nodeName}" for you.`
+      };
+      setChatMessages(prev => [...prev, confirmMsg]);
+      playVoiceMessage(confirmMsg.id, confirmMsg.content);
+      
+      // Show feedback
+      logger.ui('💬', 'Showing node creation feedback');
+      setNodeCreationFeedback(`✅ ${nodeType} node "${nodeName}" created`);
+      setTimeout(() => setNodeCreationFeedback(null), 3000);
+    } catch (error) {
+      logger.error('❌', 'Error adding node to canvas', error);
+    }
+    
+    logger.groupEnd();
+  };
+  
+  // Process connect nodes voice command
+  const processConnectNodesVoiceCommand = (sourceNodeName: string, targetNodeName: string) => {
+    if (!nodeEditorRef.current) {
+      const errorMsg = {
+        id: `ai-error-${Date.now()}`,
+        role: 'ai' as 'ai',
+        content: "I can't connect nodes right now because the node editor isn't ready. Please try again in a moment."
+      };
+      setChatMessages(prev => [...prev, errorMsg]);
+      return;
+    }
+    
+    // Get all nodes
+    const { nodes } = nodeEditorRef.current.getCanvas();
+    
+    // Find source and target nodes by name or partial ID
+    const sourceNode = nodes.find((node: any) => 
+      node.data.name.toLowerCase().includes(sourceNodeName.toLowerCase()) ||
+      node.id.toLowerCase().includes(sourceNodeName.toLowerCase())
+    );
+    
+    const targetNode = nodes.find((node: any) => 
+      node.data.name.toLowerCase().includes(targetNodeName.toLowerCase()) ||
+      node.id.toLowerCase().includes(targetNodeName.toLowerCase())
+    );
+    
+    if (!sourceNode || !targetNode) {
+      const errorMsg = {
+        id: `ai-error-${Date.now()}`,
+        role: 'ai' as 'ai',
+        content: `I couldn't find ${!sourceNode ? `a node named "${sourceNodeName}"` : `a node named "${targetNodeName}"`}. Please check the node names and try again.`
+      };
+      setChatMessages(prev => [...prev, errorMsg]);
+      playVoiceMessage(errorMsg.id, errorMsg.content);
+      return;
+    }
+    
+    // Connect the nodes
+    nodeEditorRef.current.connectNodes(sourceNode.id, targetNode.id);
+    
+    // Send confirmation message
+    const confirmMsg = {
+      id: `ai-connect-${Date.now()}`,
+      role: 'ai' as 'ai',
+      content: `I've connected the ${sourceNode.data.name} node to the ${targetNode.data.name} node.`
+    };
+    setChatMessages(prev => [...prev, confirmMsg]);
+    playVoiceMessage(confirmMsg.id, confirmMsg.content);
+  };
+  
+  // Process remove node voice command
+  const processRemoveNodeVoiceCommand = (nodeName: string) => {
+    if (!nodeEditorRef.current) {
+      const errorMsg = {
+        id: `ai-error-${Date.now()}`,
+        role: 'ai' as 'ai',
+        content: "I can't remove a node right now because the node editor isn't ready. Please try again in a moment."
+      };
+      setChatMessages(prev => [...prev, errorMsg]);
+      return;
+    }
+    
+    // Get all nodes
+    const { nodes } = nodeEditorRef.current.getCanvas();
+    
+    // Find node by name or partial ID
+    const node = nodes.find((node: any) => 
+      node.data.name.toLowerCase().includes(nodeName.toLowerCase()) ||
+      node.id.toLowerCase().includes(nodeName.toLowerCase())
+    );
+    
+    if (!node) {
+      const errorMsg = {
+        id: `ai-error-${Date.now()}`,
+        role: 'ai' as 'ai',
+        content: `I couldn't find a node named "${nodeName}". Please check the node name and try again.`
+      };
+      setChatMessages(prev => [...prev, errorMsg]);
+      playVoiceMessage(errorMsg.id, errorMsg.content);
+      return;
+    }
+    
+    // Remove the node
+    nodeEditorRef.current.removeNodeFromCanvas(node.id);
+    
+    // Send confirmation message
+    const confirmMsg = {
+      id: `ai-remove-${Date.now()}`,
+      role: 'ai' as 'ai',
+      content: `I've removed the ${node.data.name} node.`
+    };
+    setChatMessages(prev => [...prev, confirmMsg]);
+    playVoiceMessage(confirmMsg.id, confirmMsg.content);
   };
 
   // Get the current active step
@@ -646,9 +930,13 @@ const Governance: React.FC<GovernanceProps> = () => {
 
   // Play voice message using elevenlabs
   const playVoiceMessage = async (messageId: string, text: string) => {
+    logger.group('Voice Playback');
+    logger.voice('🔊', 'Starting voice playback', { messageId });
+    
     try {
       // Stop any recording first
       if (isRecording) {
+        logger.voice('🎙️', 'Stopping recording before playback');
         stopRecording();
       }
       
@@ -659,76 +947,68 @@ const Governance: React.FC<GovernanceProps> = () => {
       const apiKey = localStorage.getItem('elevenlabsApiKey') || '';
       const voiceId = localStorage.getItem('elevenlabsVoiceId') || '';
       
+      logger.debug('🔑', 'Checking ElevenLabs credentials', { 
+        hasApiKey: !!apiKey, 
+        hasVoiceId: !!voiceId 
+      });
+      
       if (!apiKey || !voiceId) {
-        console.log('ElevenLabs API key or voice ID not configured - skipping voice playback');
-        // Don't show alert to improve user experience
-        // Continue with the flow without voice
+        logger.warn('⚠️', 'ElevenLabs API key or voice ID not configured - skipping voice playback');
+        // Simulate a delay then reset the state
         setTimeout(() => {
           setIsPlaying(false);
           setCurrentPlayingMessageId(null);
           
           // Only start recording after AI is done speaking
           setTimeout(() => {
-            // Find and focus the chat input
-            const chatInput = document.getElementById('chat-input') as HTMLInputElement;
-            if (chatInput) {
-              chatInput.focus();
-              chatInput.placeholder = 'Listening...';
-            }
-            
             // Make sure we're not already recording before starting
             if (!isRecording) {
               startRecording();
             }
           }, 500);
         }, 1000);
+        logger.groupEnd();
         return;
       }
       
       // Initialize service with API key
+      logger.api('🔄', 'Initializing ElevenLabs service with API key');
       elevenlabsService.initElevenLabsService(apiKey);
       
       try {
         // Try to speak the text
-        await elevenlabsService.speak(text, voiceId);
-      } catch (speechError) {
-        console.error('Error with speech synthesis:', speechError);
-        // Continue with the flow even if speech fails
-      }
-      
-      console.log('Speech playback completed');
-      
-      // Reset states
-      setIsPlaying(false);
-      setCurrentPlayingMessageId(null);
-      
-      // Only start recording after AI is done speaking
-      setTimeout(() => {
-        // Find and focus the chat input
-        const chatInput = document.getElementById('chat-input') as HTMLInputElement;
-        if (chatInput) {
-          chatInput.focus();
-          chatInput.placeholder = 'Listening...';
-        }
+        logger.api('📡', 'Sending text-to-speech request to ElevenLabs', { 
+          textLength: text.length,
+          voiceId 
+        });
         
-        // Make sure we're not already recording before starting
-        if (!isRecording) {
-          startRecording();
-        }
-      }, 500);
-      
+        await elevenlabsService.speak(text, voiceId);
+        logger.api('✅', 'ElevenLabs API request successful');
+      } catch (speechError) {
+        logger.error('❌', 'Error with speech synthesis:', speechError);
+      } finally {
+        // Always reset the states whether speech succeeds or fails
+        logger.voice('✅', 'Speech playback completed');
+        setIsPlaying(false);
+        setCurrentPlayingMessageId(null);
+        
+        // Only start recording after AI is done speaking
+        setTimeout(() => {
+          // Make sure we're not already recording before starting
+          if (!isRecording) {
+            logger.voice('⏱️', 'Starting recording after speech playback');
+            startRecording();
+          }
+        }, 500);
+      }
     } catch (error) {
-      console.error('Error playing voice message:', error);
+      logger.error('❌', 'Error playing voice message:', error);
+      // Important: reset states when there's an error to prevent UI lockup
       setIsPlaying(false);
       setCurrentPlayingMessageId(null);
-      
-      // Still allow recording even if playback fails
-      setTimeout(() => {
-        if (!isRecording) {
-          startRecording();
-        }
-      }, 500);
     }
+    
+    logger.groupEnd();
   };
 
   // Add a node to the canvas based on the workflow step
@@ -847,6 +1127,7 @@ const Governance: React.FC<GovernanceProps> = () => {
 
   // Toggle the governance wizard
   const handleShowWizard = () => {
+    logger.ui('🧙', 'Toggle governance wizard', { currentMode: wizardMode });
     // Simply toggle the wizard mode without any automatic voice or message creation
     setWizardMode(wizardMode === 'hidden' ? 'sidebar' : 'hidden');
     
@@ -1047,91 +1328,133 @@ async function deployDAO() {
     }
   }, [wizardMode]);
 
-  // Add direct script injection to force remove problematic elements
+  // Reset UI state when ElevenLabs API errors occur
   useEffect(() => {
-    // Create script element
-    const script = document.createElement('script');
-    script.innerHTML = `
-      // Run immediately
-      (function() {
-        // Force remove any elements with 'Listening:' text content
-        function forceRemove() {
-          try {
-            // Get all elements in the document
-            var allElements = document.querySelectorAll('*');
-            
-            // Check each element
-            for (var i = 0; i < allElements.length; i++) {
-              var el = allElements[i];
-              
-              // Check if the element contains "Listening:" text
-              if (el && el.textContent && el.textContent.includes('Listening:')) {
-                // Get the element and its parent elements
-                var element = el;
-                var depth = 0;
-                
-                // Go up the DOM tree to find an appropriate container to remove
-                while (element && depth < 10) {
-                  if (element.classList && (
-                      element.classList.contains('mb-3') || 
-                      element.classList.contains('p-2') ||
-                      element.classList.contains('bg-neutral-dark') ||
-                      element.classList.contains('rounded-md'))) {
-                    // Remove this element if it has a parent
-                    if (element.parentNode) {
-                      element.parentNode.removeChild(element);
-                    }
-                    break;
-                  }
-                  
-                  // Check if this element is between Treasury Management and Voice Commands
-                  if (element.previousElementSibling && 
-                      element.nextElementSibling &&
-                      element.previousElementSibling.textContent && 
-                      element.nextElementSibling.textContent &&
-                      element.previousElementSibling.textContent.includes('Treasury Management') &&
-                      element.nextElementSibling.textContent.includes('Voice Commands')) {
-                    // This is our target - remove it if it has a parent
-                    if (element.parentNode) {
-                      element.parentNode.removeChild(element);
-                    }
-                    break;
-                  }
-                  
-                  element = element.parentNode;
-                  depth++;
-                }
-              }
-            }
-          } catch (err) {
-            // Silently catch any errors to prevent crashing
-            console.debug('Error in listener element cleanup:', err);
+    // Check if API key is valid
+    const checkApiKeyValidity = async () => {
+      const apiKey = localStorage.getItem('elevenlabsApiKey');
+      if (apiKey) {
+        try {
+          elevenlabsService.initElevenLabsService(apiKey);
+          const isValid = await elevenlabsService.validateApiKey();
+          if (!isValid) {
+            // If key is invalid, clear it from localStorage
+            localStorage.removeItem('elevenlabsApiKey');
+            console.log('Removed invalid ElevenLabs API key');
           }
+        } catch (error) {
+          console.warn('Error validating ElevenLabs API key:', error);
         }
-        
-        // Run the removal function
-        forceRemove();
-        
-        // Set up interval to keep checking
-        const intervalId = setInterval(forceRemove, 500);
-        
-        // Clean up the interval when the page unloads
-        window.addEventListener('beforeunload', function() {
-          clearInterval(intervalId);
-        });
-      })();
-    `;
-    
-    // Append script to document
-    document.head.appendChild(script);
-    
-    // Cleanup
-    return () => {
-      if (document.head.contains(script)) {
-        document.head.removeChild(script);
       }
     };
+    
+    checkApiKeyValidity();
   }, []);
+
+  // Add this function right before the return statement
+  // Implementation of the handleNodeManagementHelp function
+  const handleNodeManagementHelp = () => {
+    logger.ui('📘', 'Node Management help button clicked');
+    
+    const nodeHelpMessage = {
+      id: `ai-node-help-${Date.now()}`,
+      role: 'ai' as 'ai',
+      content: "# 🎮 Node Management Guide\n\nYou can create and manage nodes using text, voice, or direct canvas interaction:\n\n## 🗣️ Voice Commands\n- \"Add a token node called MyToken\"\n- \"Create a governor node named Council\"\n- \"Connect token to treasury\"\n- \"Remove the vesting node\"\n\n## ⌨️ Text Commands\n- `/add token MyToken` - Create new node\n- `/connect token-123 treasury-456` - Link nodes\n- `/remove token-123` - Delete node\n- `/list` - Show all nodes\n- `/clear` - Clear canvas\n\n## 🖱️ Direct Interaction\n- Click the '+' button on canvas to add nodes\n- Double-click nodes to edit properties"
+    };
+    
+    // Always add the message to chat
+    logger.ui('📝', 'Adding help message to chat');
+    setChatMessages(prev => [...prev, nodeHelpMessage]);
+    
+    // Check if ElevenLabs API is configured
+    const apiKey = localStorage.getItem('elevenlabsApiKey');
+    const voiceId = localStorage.getItem('elevenlabsVoiceId');
+    logger.debug('🔑', 'Checking ElevenLabs credentials', { hasApiKey: !!apiKey, hasVoiceId: !!voiceId });
+    
+    if (apiKey && voiceId) {
+      // Try voice playback but handle errors gracefully
+      logger.voice('🔊', 'Starting voice playback for Node Management help');
+      playVoiceMessage(nodeHelpMessage.id, nodeHelpMessage.content);
+    } else {
+      logger.warn('⚠️', 'Skipping voice playback - ElevenLabs not configured');
+    }
+  };
+
+  // Add function to save ElevenLabs settings
+  const saveElevenLabsSettings = () => {
+    logger.group('ElevenLabs Settings');
+    logger.info('💾', 'Saving ElevenLabs settings');
+    
+    localStorage.setItem('elevenlabsApiKey', elevenlabsApiKey);
+    localStorage.setItem('elevenlabsVoiceId', elevenlabsVoiceId);
+    
+    // Initialize the service with the new API key
+    elevenlabsService.initElevenLabsService(elevenlabsApiKey);
+    
+    logger.success('✅', 'ElevenLabs settings saved');
+    logger.groupEnd();
+    
+    setShowElevenLabsSettings(false);
+  };
+
+  // Add function to load voices from ElevenLabs
+  const loadElevenLabsVoices = async () => {
+    logger.group('Load ElevenLabs Voices');
+    
+    if (!elevenlabsApiKey) {
+      logger.warn('⚠️', 'Cannot load voices without API key');
+      logger.groupEnd();
+      return;
+    }
+    
+    try {
+      setIsLoadingVoices(true);
+      logger.info('🔄', 'Fetching voices from ElevenLabs API');
+      
+      // Initialize service first
+      elevenlabsService.initElevenLabsService(elevenlabsApiKey);
+      
+      // Get voices
+      const voicesList = await elevenlabsService.getVoices();
+      setVoices(voicesList);
+      
+      logger.success('✅', 'Fetched voices successfully', { count: voicesList.length });
+    } catch (error) {
+      logger.error('❌', 'Error fetching voices', error);
+    } finally {
+      setIsLoadingVoices(false);
+      logger.groupEnd();
+    }
+  };
+
+  // Add function to test voice
+  const testElevenLabsVoice = async () => {
+    logger.group('Test ElevenLabs Voice');
+    
+    if (!elevenlabsApiKey || !elevenlabsVoiceId) {
+      logger.warn('⚠️', 'Cannot test voice without API key and voice ID');
+      logger.groupEnd();
+      return;
+    }
+    
+    try {
+      setIsTestingVoice(true);
+      logger.info('🔊', 'Testing voice', { voiceId: elevenlabsVoiceId });
+      
+      // Initialize service first
+      elevenlabsService.initElevenLabsService(elevenlabsApiKey);
+      
+      // Test with a simple message
+      await elevenlabsService.speak('Hello, this is a test of the ElevenLabs voice synthesis.', elevenlabsVoiceId);
+      
+      logger.success('✅', 'Voice test completed');
+    } catch (error) {
+      logger.error('❌', 'Error testing voice', error);
+    } finally {
+      setIsTestingVoice(false);
+      logger.groupEnd();
+    }
+  };
 
   return (
     <div className="container py-xl">
@@ -1148,6 +1471,18 @@ async function deployDAO() {
           <h1 className="text-h2">Governance</h1>
         </div>
         <div className="flex gap-2">
+          <button 
+            className="btn-secondary flex items-center"
+            onClick={() => {
+              logger.ui('🖱️', 'Voice Settings button clicked');
+              setShowElevenLabsSettings(true);
+              // Load voices when opening settings
+              loadElevenLabsVoices();
+            }}
+          >
+            <Volume2 size={18} className="mr-xs" />
+            <span>Voice Settings</span>
+          </button>
           <button 
             className={`btn-secondary flex items-center ${wizardMode !== 'hidden' ? 'bg-primary text-white' : ''}`}
             onClick={handleShowWizard}
@@ -1503,15 +1838,22 @@ async function deployDAO() {
             AI Assistant
           </h3>
           <div className="flex items-center space-x-2">
+            {/* Add Node Management Help Button */}
+            <button 
+              className="text-xs bg-primary/20 hover:bg-primary/30 px-2 py-1 rounded flex items-center text-primary"
+              onClick={() => {
+                logger.ui('🖱️', 'Node Management button clicked');
+                handleNodeManagementHelp();
+              }}
+            >
+              <Command size={14} className="mr-1 inline-block" />
+              Node Management
+            </button>
             <button 
               className="text-xs bg-neutral/50 hover:bg-neutral px-2 py-1 rounded text-neutral-light"
-              id="show-code-btn"
               onClick={() => {
-                // Toggle code preview modal
-                const codeModal = document.getElementById('code-preview-modal');
-                if (codeModal) {
-                  codeModal.style.display = codeModal.style.display === 'none' ? 'flex' : 'none';
-                }
+                logger.ui('🖱️', 'View Generated Code button clicked');
+                setShowCodePreview(!showCodePreview);
               }}
             >
               <FileCode size={14} className="mr-1 inline-block" />
@@ -1522,6 +1864,7 @@ async function deployDAO() {
             <button 
               className="text-xs bg-primary/20 hover:bg-primary/30 px-2 py-1 rounded text-primary"
               onClick={() => {
+                logger.ui('🖱️', 'Start Chat button clicked');
                 const welcomeMessage = {
                   id: `ai-welcome-${Date.now()}`,
                   role: 'ai' as 'ai', 
@@ -1529,6 +1872,7 @@ async function deployDAO() {
                 };
                 
                 setChatMessages([welcomeMessage]);
+                logger.success('✅', 'Welcome message added to chat');
               }}
             >
               <Bot size={14} className="mr-1 inline-block" />
@@ -1557,6 +1901,26 @@ async function deployDAO() {
           </div>
         )}
         
+        {/* Voice status indicator - using only React state */}
+        {(isPlaying || (isRecording && showListeningIndicator)) && (
+          <div className="p-2 bg-neutral-dark border-b border-neutral-light/10">
+            <div className="flex items-center text-sm">
+              {isPlaying && (
+                <div className="flex items-center bg-primary/10 text-primary rounded-full px-3 py-1">
+                  <Volume2 size={14} className="animate-pulse mr-2" />
+                  <span>AI speaking...</span>
+                </div>
+              )}
+              {isRecording && showListeningIndicator && (
+                <div className="flex items-center bg-red-500/10 text-red-500 rounded-full px-3 py-1">
+                  <Mic size={14} className="animate-pulse mr-2" />
+                  <span>Listening: {speechTranscript?.substring(0, 20)}{speechTranscript?.length > 20 ? '...' : ''}</span>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        
         {/* Integrated chat interface */}
         <div className="flex-1 overflow-hidden">
           <ChatInterface
@@ -1574,6 +1938,7 @@ async function deployDAO() {
                 processUserResponse(response);
               }
             }}
+            nodeEditorRef={nodeEditorRef}
           />
         </div>
         
@@ -1607,7 +1972,7 @@ async function deployDAO() {
               <button
                 type="submit"
                 className="bg-primary text-white p-2 rounded-r-md hover:bg-primary-dark"
-                disabled={isPlaying || !userResponse.trim()}
+                disabled={isPlaying}
               >
                 <ArrowRight size={18} />
               </button>
@@ -1616,75 +1981,36 @@ async function deployDAO() {
         </div>
       </div>
       
-      {/* Code Preview Modal */}
-      <div 
-        id="code-preview-modal" 
-        className="fixed inset-0 bg-black/80 justify-center items-center z-50 p-4 hidden"
-        onClick={(e) => {
-          // Close modal when clicking outside
-          if ((e.target as HTMLElement).id === 'code-preview-modal') {
-            const modal = document.getElementById('code-preview-modal');
-            if (modal) modal.style.display = 'none';
-          }
-        }}
-      >
-        <div className="bg-neutral-dark rounded-lg w-full max-w-4xl max-h-[80vh] overflow-hidden flex flex-col shadow-xl">
-          <div className="p-4 border-b border-neutral-light/10 flex justify-between items-center">
-            <h3 className="text-lg font-semibold text-white flex items-center">
-              <FileCode size={20} className="text-primary mr-2" />
-              Generated Contract Code
-            </h3>
-            <button
-              onClick={() => {
-                const modal = document.getElementById('code-preview-modal');
-                if (modal) modal.style.display = 'none';
-              }}
-              className="text-neutral-light hover:text-white"
-            >
-              <X size={24} />
-            </button>
-          </div>
-          <div className="p-4 overflow-auto bg-neutral h-full">
-            <pre className="text-sm text-primary font-mono whitespace-pre-wrap">
-              {generateContractCode()}
-            </pre>
-          </div>
-          <div className="p-4 border-t border-neutral-light/10 flex justify-end">
-            <button 
-              className="bg-neutral hover:bg-neutral-light/20 text-neutral-light px-4 py-2 rounded mr-2"
-              onClick={() => {
-                const modal = document.getElementById('code-preview-modal');
-                if (modal) modal.style.display = 'none';
-              }}
-            >
-              Close
-            </button>
-            <button 
-              className="bg-primary hover:bg-primary/80 text-white px-4 py-2 rounded"
-              onClick={() => {
-                // Copy code to clipboard
-                const code = generateContractCode();
-                navigator.clipboard.writeText(code)
-                  .then(() => {
-                    // Create temporary success message
-                    const copyBtn = document.activeElement as HTMLButtonElement;
-                    const originalText = copyBtn.textContent;
-                    copyBtn.textContent = '✓ Copied!';
-                    setTimeout(() => {
-                      copyBtn.textContent = originalText;
-                    }, 2000);
-                  })
-                  .catch(err => {
-                    console.error('Failed to copy code: ', err);
-                    alert('Failed to copy code to clipboard');
-                  });
-              }}
-            >
-              Copy Code
-            </button>
+      {/* Code Preview Modal using React state */}
+      {showCodePreview && (
+        <div 
+          className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4"
+          onClick={() => setShowCodePreview(false)}
+        >
+          <div 
+            className="bg-neutral-dark rounded-lg shadow-xl w-full max-w-2xl max-h-[80vh] overflow-hidden"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Modal content */}
+            <div className="p-4 border-b border-neutral-light/10 flex justify-between items-center">
+              <h2 className="text-xl font-semibold text-white">Generated Code</h2>
+              <button 
+                className="text-neutral-light hover:text-white"
+                onClick={() => setShowCodePreview(false)}
+              >
+                ×
+              </button>
+            </div>
+            <div className="p-4 overflow-auto max-h-[calc(80vh-8rem)]">
+              <pre className="text-sm bg-neutral-darker p-4 rounded-md overflow-x-auto">
+                <code>
+                  {generateContractCode()}
+                </code>
+              </pre>
+            </div>
           </div>
         </div>
-      </div>
+      )}
       
       {/* Wizard toggle button */}
       <div className="flex justify-end mb-6">
@@ -1824,6 +2150,92 @@ async function deployDAO() {
       {nodeCreationFeedback && (
         <div className="fixed top-20 right-5 bg-green-500 text-white py-2 px-4 rounded shadow-lg animate-fade-in-out">
           ✅ {nodeCreationFeedback}
+        </div>
+      )}
+
+      {/* ElevenLabs Settings Modal */}
+      {showElevenLabsSettings && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-md">
+          <div className="bg-neutral-dark rounded-lg w-full max-w-md max-h-[80vh] overflow-y-auto">
+            <div className="p-lg">
+              <div className="flex justify-between items-center mb-lg">
+                <h2 className="text-h3">ElevenLabs Voice Settings</h2>
+                <button 
+                  className="text-neutral-light hover:text-white"
+                  onClick={() => setShowElevenLabsSettings(false)}
+                >
+                  ×
+                </button>
+              </div>
+              
+              <div className="space-y-md">
+                <div>
+                  <label className="block text-sm font-medium text-neutral-light mb-xs">
+                    ElevenLabs API Key
+                  </label>
+                  <input
+                    type="password"
+                    value={elevenlabsApiKey}
+                    onChange={(e) => setElevenlabsApiKey(e.target.value)}
+                    placeholder="Enter your ElevenLabs API key"
+                    className="w-full bg-neutral p-sm rounded-md border border-neutral-light/20 text-white"
+                  />
+                  <p className="text-xs text-neutral-light mt-xs">
+                    You can get your API key from your <a href="https://elevenlabs.io/app/dashboard" target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">ElevenLabs dashboard</a>.
+                  </p>
+                </div>
+                
+                <div>
+                  <label className="block text-sm font-medium text-neutral-light mb-xs">
+                    Voice ID
+                  </label>
+                  <div className="flex space-x-2">
+                    <select
+                      value={elevenlabsVoiceId}
+                      onChange={(e) => setElevenlabsVoiceId(e.target.value)}
+                      className="flex-1 bg-neutral p-sm rounded-md border border-neutral-light/20 text-white"
+                      disabled={isLoadingVoices}
+                    >
+                      <option value="">Select a voice</option>
+                      {voices.map((voice) => (
+                        <option key={voice.voice_id} value={voice.voice_id}>
+                          {voice.name}
+                        </option>
+                      ))}
+                    </select>
+                    <button
+                      onClick={loadElevenLabsVoices}
+                      disabled={!elevenlabsApiKey || isLoadingVoices}
+                      className="bg-primary text-white p-sm rounded-md disabled:opacity-50"
+                    >
+                      {isLoadingVoices ? 'Loading...' : 'Load Voices'}
+                    </button>
+                  </div>
+                  {!voices.length && !isLoadingVoices && (
+                    <p className="text-xs text-neutral-light mt-xs">
+                      Enter your API key and click "Load Voices" to see available voices.
+                    </p>
+                  )}
+                </div>
+                
+                <div className="pt-md">
+                  <button
+                    onClick={testElevenLabsVoice}
+                    disabled={!elevenlabsApiKey || !elevenlabsVoiceId || isTestingVoice}
+                    className="bg-primary text-white p-sm rounded-md mr-sm disabled:opacity-50"
+                  >
+                    {isTestingVoice ? 'Testing...' : 'Test Voice'}
+                  </button>
+                  <button
+                    onClick={saveElevenLabsSettings}
+                    className="bg-green-600 text-white p-sm rounded-md disabled:opacity-50"
+                  >
+                    Save Settings
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

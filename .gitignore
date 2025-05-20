@@ -23,4 +23,6 @@ cache/
 
 # OS files
 .DS_Store
-Thumbs.db
+Thumbs.dbBAD-temp/
+DEV/PWBR_DEV_KIT_v1_0_7/
+_DOCS/BD-DEV-OPSEC-MAY-2025/

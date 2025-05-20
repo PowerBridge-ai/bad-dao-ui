@@ -1,5 +1,5 @@
-import React, { useRef, useEffect } from 'react';
-import { Bot, Mic, Volume2, Play, Pause, User } from 'lucide-react';
+import React, { useRef, useEffect, useState } from 'react';
+import { Bot, Mic, Volume2, Play, Pause, User, Plus, Edit, Link, Trash, Info } from 'lucide-react';
 import MarkdownRenderer from '../ai/MarkdownRenderer';
 
 interface ChatMessage {
@@ -15,17 +15,52 @@ interface ChatInterfaceProps {
   isRecording: boolean;
   onPlayMessage?: (messageId: string) => void;
   onSubmitResponse?: (response: string) => void;
+  nodeEditorRef?: React.RefObject<{
+    addNodeToCanvas: (nodeData: any) => string;
+    clearCanvas: () => void;
+    getCanvas: () => { nodes: any[], edges: any[] };
+    removeNodeFromCanvas: (nodeId: string) => void;
+    connectNodes: (sourceId: string, targetId: string) => void;
+  }>;
 }
+
+// Node command patterns for natural language processing
+const NODE_COMMANDS = {
+  ADD: [
+    /add(?:\s+a)?(?:\s+new)?(?:\s+node)?(?:\s+called|named)?\s+(\w+)(?:\s+of\s+type|type)?\s+(\w+)/i,
+    /create(?:\s+a)?(?:\s+new)?(?:\s+node)?(?:\s+called|named)?\s+(\w+)(?:\s+of\s+type|type)?\s+(\w+)/i,
+    /new(?:\s+node)?(?:\s+called|named)?\s+(\w+)(?:\s+of\s+type|type)?\s+(\w+)/i
+  ],
+  REMOVE: [
+    /remove(?:\s+node)?\s+(\w+-\d+)/i,
+    /delete(?:\s+node)?\s+(\w+-\d+)/i
+  ],
+  CONNECT: [
+    /connect(?:\s+node)?\s+(\w+-\d+)(?:\s+to)?\s+(\w+-\d+)/i,
+    /link(?:\s+node)?\s+(\w+-\d+)(?:\s+to)?\s+(\w+-\d+)/i
+  ],
+  LIST: [
+    /list(?:\s+all)?(?:\s+nodes)?/i,
+    /show(?:\s+all)?(?:\s+nodes)?/i
+  ],
+  CLEAR: [
+    /clear(?:\s+canvas)?/i,
+    /reset(?:\s+canvas)?/i
+  ]
+};
 
 const ChatInterface: React.FC<ChatInterfaceProps> = ({
   messages,
   currentPlayingMessageId,
   isRecording,
   onPlayMessage,
-  onSubmitResponse
+  onSubmitResponse,
+  nodeEditorRef
 }) => {
   const messageEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [commandHelp, setCommandHelp] = useState<boolean>(false);
+  const [nodeCommandFeedback, setNodeCommandFeedback] = useState<{type: string, message: string} | null>(null);
 
   // Auto-scroll to bottom when new messages appear
   useEffect(() => {
@@ -34,19 +69,319 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   }, [messages]);
 
+  // Process natural language commands
+  const processNaturalLanguageCommand = (input: string) => {
+    if (!nodeEditorRef || !nodeEditorRef.current) {
+      return { success: false, message: "Node editor reference not available" };
+    }
+
+    const trimmedInput = input.trim();
+    
+    // Check for add node patterns
+    for (const pattern of NODE_COMMANDS.ADD) {
+      const match = trimmedInput.match(pattern);
+      if (match) {
+        const [_, nodeName, nodeType] = match;
+        return processAddNode(nodeName, nodeType);
+      }
+    }
+    
+    // Check for remove node patterns
+    for (const pattern of NODE_COMMANDS.REMOVE) {
+      const match = trimmedInput.match(pattern);
+      if (match) {
+        const [_, nodeId] = match;
+        return processRemoveNode(nodeId);
+      }
+    }
+    
+    // Check for connect node patterns
+    for (const pattern of NODE_COMMANDS.CONNECT) {
+      const match = trimmedInput.match(pattern);
+      if (match) {
+        const [_, sourceId, targetId] = match;
+        return processConnectNodes(sourceId, targetId);
+      }
+    }
+    
+    // Check for list nodes patterns
+    for (const pattern of NODE_COMMANDS.LIST) {
+      if (pattern.test(trimmedInput)) {
+        return processListNodes();
+      }
+    }
+    
+    // Check for clear canvas patterns
+    for (const pattern of NODE_COMMANDS.CLEAR) {
+      if (pattern.test(trimmedInput)) {
+        return processClearCanvas();
+      }
+    }
+    
+    // Check for explicit commands starting with /
+    if (trimmedInput.startsWith('/')) {
+      return processExplicitCommand(trimmedInput);
+    }
+    
+    // Not a recognized command
+    return { success: false, message: null };
+  };
+
+  // Helper to process explicit node commands
+  const processExplicitCommand = (input: string) => {
+    if (!nodeEditorRef || !nodeEditorRef.current) {
+      return { success: false, message: "Node editor reference not available" };
+    }
+
+    const trimmedInput = input.trim().toLowerCase();
+    
+    // Command: help
+    if (trimmedInput === '/help') {
+      setCommandHelp(true);
+      return { success: true, message: null };
+    }
+    
+    // Command: add node
+    if (trimmedInput.startsWith('/add')) {
+      const parts = input.slice(4).trim().split(' ');
+      let nodeType = 'token';
+      let nodeName = 'New Node';
+      
+      if (parts.length >= 1) {
+        nodeType = parts[0].toLowerCase();
+      }
+      
+      if (parts.length >= 2) {
+        nodeName = parts.slice(1).join(' ');
+      }
+      
+      return processAddNode(nodeName, nodeType);
+    }
+    
+    // Command: remove node
+    if (trimmedInput.startsWith('/remove')) {
+      const nodeId = input.slice(7).trim();
+      if (!nodeId) {
+        return { success: false, message: "Please specify a node ID to remove" };
+      }
+      
+      return processRemoveNode(nodeId);
+    }
+    
+    // Command: connect nodes
+    if (trimmedInput.startsWith('/connect')) {
+      const parts = input.slice(8).trim().split(' ');
+      if (parts.length < 2) {
+        return { success: false, message: "Please specify source and target node IDs to connect" };
+      }
+      
+      const sourceId = parts[0];
+      const targetId = parts[1];
+      
+      return processConnectNodes(sourceId, targetId);
+    }
+    
+    // Command: list nodes
+    if (trimmedInput === '/list') {
+      return processListNodes();
+    }
+    
+    // Command: clear canvas
+    if (trimmedInput === '/clear') {
+      return processClearCanvas();
+    }
+    
+    // Not a recognized command
+    return { success: false, message: null };
+  };
+  
+  // Process add node command
+  const processAddNode = (nodeName: string, nodeType: string) => {
+    const nodeData = {
+      name: nodeName || 'New Node',
+      type: nodeType.toLowerCase() || 'token',
+      ...(nodeType.toLowerCase() === 'token' && {
+        symbol: nodeName.substring(0, 4).toUpperCase() || 'TKN',
+        decimals: '18',
+        supply: '1000000'
+      })
+    };
+    
+    // Show feedback to user
+    setNodeCommandFeedback({
+      type: 'add',
+      message: `Creating ${nodeType} node named "${nodeName}"...`
+    });
+    
+    // Add node with a slight delay to allow feedback to show
+    setTimeout(() => {
+      const nodeId = nodeEditorRef!.current!.addNodeToCanvas(nodeData);
+      
+      // Clear feedback after 2 seconds
+      setTimeout(() => {
+        setNodeCommandFeedback(null);
+      }, 2000);
+    }, 300);
+    
+    return { 
+      success: true, 
+      message: `Added ${nodeType} node "${nodeName}"` 
+    };
+  };
+  
+  // Process remove node command
+  const processRemoveNode = (nodeId: string) => {
+    // Show feedback to user
+    setNodeCommandFeedback({
+      type: 'remove',
+      message: `Removing node ${nodeId}...`
+    });
+    
+    // Remove node with a slight delay to allow feedback to show
+    setTimeout(() => {
+      nodeEditorRef!.current!.removeNodeFromCanvas(nodeId);
+      
+      // Clear feedback after 2 seconds
+      setTimeout(() => {
+        setNodeCommandFeedback(null);
+      }, 2000);
+    }, 300);
+    
+    return { 
+      success: true, 
+      message: `Removed node with ID: ${nodeId}` 
+    };
+  };
+  
+  // Process connect nodes command
+  const processConnectNodes = (sourceId: string, targetId: string) => {
+    // Show feedback to user
+    setNodeCommandFeedback({
+      type: 'connect',
+      message: `Connecting node ${sourceId} to ${targetId}...`
+    });
+    
+    // Connect nodes with a slight delay to allow feedback to show
+    setTimeout(() => {
+      nodeEditorRef!.current!.connectNodes(sourceId, targetId);
+      
+      // Clear feedback after 2 seconds
+      setTimeout(() => {
+        setNodeCommandFeedback(null);
+      }, 2000);
+    }, 300);
+    
+    return { 
+      success: true, 
+      message: `Connected node ${sourceId} to ${targetId}` 
+    };
+  };
+  
+  // Process list nodes command
+  const processListNodes = () => {
+    const { nodes } = nodeEditorRef!.current!.getCanvas();
+    const nodeList = nodes.map(node => `${node.id}: ${node.data.name} (${node.type})`).join('\n');
+    
+    // Show feedback briefly
+    setNodeCommandFeedback({
+      type: 'list',
+      message: 'Listing all nodes...'
+    });
+    
+    // Clear feedback after 1 second
+    setTimeout(() => {
+      setNodeCommandFeedback(null);
+    }, 1000);
+    
+    return { 
+      success: true, 
+      message: `Available nodes:\n${nodeList}` 
+    };
+  };
+  
+  // Process clear canvas command
+  const processClearCanvas = () => {
+    // Show feedback to user
+    setNodeCommandFeedback({
+      type: 'clear',
+      message: 'Clearing canvas...'
+    });
+    
+    // Clear canvas with a slight delay to allow feedback to show
+    setTimeout(() => {
+      nodeEditorRef!.current!.clearCanvas();
+      
+      // Clear feedback after 2 seconds
+      setTimeout(() => {
+        setNodeCommandFeedback(null);
+      }, 2000);
+    }, 300);
+    
+    return { 
+      success: true, 
+      message: "Canvas cleared" 
+    };
+  };
+
   // Handle input submission
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (inputRef.current && inputRef.current.value.trim() && onSubmitResponse) {
-      onSubmitResponse(inputRef.current.value);
-      inputRef.current.value = '';
+    if (inputRef.current && inputRef.current.value.trim()) {
+      const userInput = inputRef.current.value;
+      
+      // Check if this is a natural language or explicit node command
+      const result = processNaturalLanguageCommand(userInput);
+      
+      // If it was a command and we should respond with a message
+      if (result.success) {
+        // Always pass the user input to the parent
+        if (onSubmitResponse) {
+          onSubmitResponse(userInput);
+        }
+        
+        // Clear the input field
+        inputRef.current.value = '';
+        
+        // If we have a message to display, create an AI response
+        if (result.message && onSubmitResponse) {
+          // We simulate the AI response after a short delay
+          setTimeout(() => {
+            onSubmitResponse(`**Node Command Result:**\n\n${result.message}`);
+          }, 300);
+        }
+        return;
+      }
+      
+      // Not a recognized command, pass to normal handler
+      if (onSubmitResponse) {
+        onSubmitResponse(userInput);
+        inputRef.current.value = '';
+      }
+    }
+  };
+  
+  // Get icon for node command feedback
+  const getNodeCommandIcon = (type: string) => {
+    switch (type) {
+      case 'add':
+        return <Plus size={14} className="text-green-400" />;
+      case 'remove':
+        return <Trash size={14} className="text-red-400" />;
+      case 'connect':
+        return <Link size={14} className="text-blue-400" />;
+      case 'list':
+        return <Info size={14} className="text-yellow-400" />;
+      case 'clear':
+        return <Trash size={14} className="text-orange-400" />;
+      default:
+        return <Bot size={14} className="text-primary" />;
     }
   };
 
   if (messages.length === 0) {
     return (
       <div className="h-full flex items-center justify-center text-neutral-light text-sm">
-        <p>No conversation yet. Start by selecting a workflow step.</p>
+        <p>No conversation yet. Start by selecting a workflow step or type /help for node commands.</p>
       </div>
     );
   }
@@ -116,31 +451,71 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
           </div>
         )}
         
-        {/* End of messages marker for auto-scroll */}
+        {/* Node command feedback */}
+        {nodeCommandFeedback && (
+          <div className="flex">
+            <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center mr-2">
+              {getNodeCommandIcon(nodeCommandFeedback.type)}
+            </div>
+            <div className="flex-1">
+              <div className="rounded-lg p-2 bg-primary/5 border border-primary/20 text-neutral-light text-sm animate-pulse">
+                {nodeCommandFeedback.message}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Command help tooltip */}
+        {commandHelp && (
+          <div className="flex justify-start">
+            <div className="w-6 h-6 rounded-full bg-primary/20 flex items-center justify-center mr-2 flex-shrink-0">
+              <Bot size={14} className="text-primary" />
+            </div>
+            <div className="rounded-lg p-3 bg-neutral-dark text-sm text-white max-w-[85%]">
+              <h3 className="font-medium mb-2">Node Command Help</h3>
+              <div className="space-y-2 mb-3">
+                <p className="text-neutral-light text-xs">You can use the following commands to manage nodes:</p>
+                <ul className="space-y-1 text-xs">
+                  <li><code className="bg-neutral-light/10 rounded px-1">/add [type] [name]</code> - Create a new node</li>
+                  <li><code className="bg-neutral-light/10 rounded px-1">/remove [node-id]</code> - Delete a node</li>
+                  <li><code className="bg-neutral-light/10 rounded px-1">/connect [source-id] [target-id]</code> - Connect nodes</li>
+                  <li><code className="bg-neutral-light/10 rounded px-1">/list</code> - Show all nodes</li>
+                  <li><code className="bg-neutral-light/10 rounded px-1">/clear</code> - Clear the canvas</li>
+                </ul>
+              </div>
+              <h4 className="font-medium mb-1">Natural Language Examples:</h4>
+              <ul className="space-y-1 text-xs text-neutral-light">
+                <li>"Add a token node called MyToken"</li>
+                <li>"Create a governance node named DAOGov"</li>
+                <li>"Connect token-1234 to governance-5678"</li>
+                <li>"Remove token-1234"</li>
+                <li>"Show all nodes"</li>
+              </ul>
+            </div>
+          </div>
+        )}
+        
         <div ref={messageEndRef} />
       </div>
       
-      {/* Input area (optional) */}
-      {onSubmitResponse && (
-        <div className="p-2 border-t border-neutral-light/10">
-          <form onSubmit={handleSubmit} className="flex">
-            <input
-              ref={inputRef}
-              type="text"
-              className={`flex-1 bg-neutral-dark border border-neutral-light/20 rounded-l-md p-2 text-white text-sm ${isRecording ? 'border-red-500 bg-red-500/5' : ''}`}
-              placeholder={isRecording ? "Listening..." : "Type your response..."}
-              disabled={currentPlayingMessageId !== null}
-            />
-            <button
-              type="submit"
-              className="bg-primary text-white p-2 rounded-r-md hover:bg-primary-dark disabled:opacity-50"
-              disabled={currentPlayingMessageId !== null || isRecording}
-            >
-              Send
-            </button>
-          </form>
-        </div>
-      )}
+      <div className="p-3 border-t border-neutral-light/10">
+        <form onSubmit={handleSubmit} className="flex">
+          <input
+            ref={inputRef}
+            type="text"
+            className="flex-1 bg-neutral-dark border border-neutral-light/20 rounded-lg p-2 text-white text-sm focus:outline-none focus:border-primary/50"
+            placeholder={nodeEditorRef ? "Type a message or node command..." : "Type a message..."}
+            disabled={isRecording || currentPlayingMessageId !== null}
+          />
+          <button
+            type="submit"
+            className="ml-2 bg-primary hover:bg-primary-light text-black rounded-lg px-3 py-2 text-sm flex items-center"
+            disabled={isRecording || currentPlayingMessageId !== null}
+          >
+            Send
+          </button>
+        </form>
+      </div>
     </div>
   );
 };
