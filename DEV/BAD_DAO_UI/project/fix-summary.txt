@@ -1,0 +1,1 @@
+Fixed elevenlabsService.ts with improved error handling and patched Governance.tsx to use React state instead of direct DOM manipulation.
